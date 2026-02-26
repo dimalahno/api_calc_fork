@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from services.punishment_api.schemas import HealthResponse
+from app.schemas.response import HealthResponse
 
 router = APIRouter()
 
