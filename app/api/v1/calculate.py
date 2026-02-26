@@ -1,26 +1,24 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from services.punishment_api.calculator import calculate_from_json
-from services.punishment_api.localization import normalize_lang
-from services.punishment_api.schemas import CalculateRequest, CalculateResponse
+from app.api.deps import get_punishment_service
+from app.core.i18n import normalize_lang
+from app.domain.services.punishment_service import PunishmentService
+from app.schemas.request import CalculateRequest
+from app.schemas.response import CalculateResponse
+from app.utils.converters import to_payload_dict
 
 router = APIRouter()
 
 
 @router.post("/calculate", response_model=CalculateResponse)
-def calculate(payload: CalculateRequest) -> CalculateResponse:
+def calculate(payload: CalculateRequest, service: PunishmentService = Depends(get_punishment_service)) -> CalculateResponse:
     lang = normalize_lang(payload.lang)
     if lang != "ru":
         raise HTTPException(status_code=400, detail="Only 'ru' is supported for now")
 
-    if hasattr(payload, "model_dump"):
-        data = payload.model_dump()
-    else:
-        data = payload.dict()
-
-    a_nakaz, structured = calculate_from_json(data)
+    a_nakaz, structured = service.calculate(to_payload_dict(payload))
 
     return CalculateResponse(
         lang=lang,

@@ -3,8 +3,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from app.api.deps import get_reference
+from app.schemas.response import ReferenceStatusResponse
 from services.punishment_api.reference_loader import ReferenceService
-from services.punishment_api.schemas import ReferenceStatusResponse
 
 router = APIRouter()
 
