@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.punishment_api.calculator import calculate_from_json
+from app.domain.services.calculator import calculate_from_json
 
 
 class PunishmentService:

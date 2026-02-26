@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 
 from app.api.deps import get_reference
 from app.schemas.response import ReferenceStatusResponse
-from services.punishment_api.reference_loader import ReferenceService
+from app.infrastructure.loaders.reference_loader import ReferenceService
 
 router = APIRouter()
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from services.punishment_api.reference_loader import ArticleRecord, ReferenceService
+from app.infrastructure.loaders.reference_loader import ArticleRecord, ReferenceService
 
 
 class ReferenceRepository:
