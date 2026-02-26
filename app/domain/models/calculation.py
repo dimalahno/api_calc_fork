@@ -1,5 +1,5 @@
 from __future__ import annotations
 
-from services.punishment_api.schemas import CalculateRequest, CalculateResponse, StructuredResponse
+from app.schemas.models import CalculateRequest, CalculateResponse, StructuredResponse
 
 __all__ = ["CalculateRequest", "CalculateResponse", "StructuredResponse"]

@@ -4,7 +4,7 @@ import os
 
 from app.core.config import get_settings
 from app.domain.services.punishment_service import PunishmentService
-from services.punishment_api.reference_loader import get_reference_service
+from app.infrastructure.loaders.reference_loader import get_reference_service
 
 
 def get_reference():
