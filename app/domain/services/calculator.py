@@ -1,3 +1,5 @@
+"""Оркестрация расчёта: подготовка входа, вызов движка, сборка ответа."""
+
 from __future__ import annotations
 
 from datetime import date
@@ -9,6 +11,7 @@ from app.infrastructure.loaders.reference_loader import get_reference_service
 
 
 def _parse_gender(value: str | None) -> str:
+    """Нормализует пол в коды FoxPro (`1` — муж., `2` — жен.)."""
     if not value:
         return "1"
     v = str(value).strip().lower()
@@ -18,6 +21,7 @@ def _parse_gender(value: str | None) -> str:
 
 
 def _parse_stage(value: str | None) -> str:
+    """Нормализует стадию преступления в коды `1/2/3`."""
     if not value:
         return "3"
     v = str(value).strip().lower()
@@ -29,6 +33,7 @@ def _parse_stage(value: str | None) -> str:
 
 
 def _build_code(article: str, part: str | None, paragraph: str | None) -> str:
+    """Собирает 7-значный код статьи в формате `AAASSPP`."""
     art = str(article).strip()
     if not art:
         return ""
@@ -47,6 +52,7 @@ def _build_code(article: str, part: str | None, paragraph: str | None) -> str:
 
 
 def _resolve_article_code(article_code: str | None, article: str | None, part: str | None, paragraph: str | None) -> str:
+    """Выбирает итоговый код статьи: готовый код или сборка из полей article/part."""
     if article_code:
         code = str(article_code).strip()
         if code.isdigit():
@@ -59,6 +65,7 @@ def _resolve_article_code(article_code: str | None, article: str | None, part: s
 
 
 def _parse_date(value: Any) -> date | None:
+    """Преобразует дату из ISO-строки/`date` в объект `date`."""
     if isinstance(value, date):
         return value
     if isinstance(value, str) and value:
@@ -67,6 +74,7 @@ def _parse_date(value: Any) -> date | None:
 
 
 def calculate_from_json(payload: Dict[str, Any]) -> Tuple[List[List[Any]], Dict[str, Any]]:
+    """Выполняет полный pipeline расчёта наказаний из API payload."""
     lang = normalize_lang(payload.get("lang", "ru"))
     person = payload.get("person", {}) or {}
     crime = payload.get("crime", {}) or {}
@@ -143,6 +151,7 @@ def calculate_from_json(payload: Dict[str, Any]) -> Tuple[List[List[Any]], Dict[
 
 
 def _build_structured(a_nakaz: List[List[Any]]) -> Dict[str, Any]:
+    """Преобразует массив `aNakaz` в читаемую структуру `structured`."""
     def item(row: int) -> Dict[str, Any]:
         r = a_nakaz[row]
         data = {

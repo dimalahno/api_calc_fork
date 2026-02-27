@@ -1,3 +1,5 @@
+"""Конфигурация приложения и загрузка настроек из окружения/.env."""
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -13,6 +15,7 @@ model_config = SettingsConfigDict(
 )
 
 class Settings(BaseSettings):
+    """Настройки FastAPI-сервиса и пути к справочнику санкций."""
     api_title: str = "Punishment API"
     api_version: str = "0.1.0"
     reference_file_path: str = str(
@@ -30,6 +33,7 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    """Возвращает кешированный экземпляр настроек приложения."""
     return Settings()
 
 settings = get_settings()

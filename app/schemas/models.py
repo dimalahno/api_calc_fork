@@ -1,3 +1,5 @@
+"""Pydantic-схемы запросов и ответов Punishment API."""
+
 from __future__ import annotations
 
 from datetime import date
@@ -7,6 +9,7 @@ from pydantic import BaseModel, Field
 
 
 class PersonIn(BaseModel):
+    """Входные данные о лице (персональные и служебные признаки)."""
     birth_date: Optional[date] = Field(default=None)
     gender: Optional[str] = Field(default=None, description="1=male, 2=female, or male/female")
     is_recidivist: Optional[bool] = Field(default=False)
@@ -25,6 +28,7 @@ class PersonIn(BaseModel):
 
 
 class CrimeIn(BaseModel):
+    """Входные данные по событию преступления и параметрам квалификации."""
     crime_date: Optional[date] = Field(default=None)
     article_code: Optional[str] = Field(default=None)
     article: Optional[str] = Field(default=None)
@@ -51,6 +55,7 @@ class CrimeIn(BaseModel):
 
 
 class CalculateRequest(BaseModel):
+    """Тело запроса на расчёт наказания."""
     lang: str = Field(default="ru")
     calc_date: Optional[date] = Field(default=None, description="Override calculation date (server date)")
     person: PersonIn
@@ -58,6 +63,7 @@ class CalculateRequest(BaseModel):
 
 
 class PunishmentItem(BaseModel):
+    """Унифицированный элемент результата по одному виду наказания."""
     is_applicable: bool
     min_value: float = 0
     max_value: float = 0
@@ -72,24 +78,28 @@ class PunishmentItem(BaseModel):
 
 
 class StructuredResponse(BaseModel):
+    """Читаемая структура ответа с наказаниями и мета-признаками."""
     punishments: Dict[str, Any]
     additional_punishments: Dict[str, Any]
     meta: Dict[str, Any]
 
 
 class CalculateResponse(BaseModel):
+    """Полный ответ API: язык, массив `aNakaz` и структурированный блок."""
     lang: str
     aNakaz: List[List[Any]]
     structured: StructuredResponse
 
 
 class ReferenceStatusResponse(BaseModel):
+    """Ответ эндпоинта статуса справочника."""
     source: str
     count: int
     file_path: str
 
 
 class HealthResponse(BaseModel):
+    """Ответ health-check эндпоинта."""
     status: str = "ok"
     service: str = "punishment-api"
     version: str = "0.1.0"
