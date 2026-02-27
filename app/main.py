@@ -1,3 +1,5 @@
+"""Точка входа FastAPI-приложения для расчёта наказаний."""
+
 from __future__ import annotations
 
 import logging
@@ -14,6 +16,7 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 def create_app() -> FastAPI:
+    """Создаёт и конфигурирует экземпляр FastAPI с роутами API v1."""
     app_settings = get_settings()
     fastapi_app = FastAPI(title=app_settings.api_title, version=app_settings.api_version)
     fastapi_app.include_router(v1_router)

@@ -1,3 +1,5 @@
+"""Агрегатор роутеров API версии v1."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter
