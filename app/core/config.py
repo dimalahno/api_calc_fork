@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     api_title: str = "Punishment API"
     api_version: str = "0.1.0"
     reference_file_path: str = str(
-        Path(__file__).resolve().parents[2] / "reference_uk_2025_06_07.txt"
+        Path(__file__).resolve().parents[2] / "d_fe1r10p1.csv"
     )
     APP_HOST: str = "127.0.0.1"
     APP_PORT: int = 9000
