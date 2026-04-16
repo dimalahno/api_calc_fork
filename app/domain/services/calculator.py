@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Dict, List, Tuple
 
-from app.domain.engines.foxpro_engine import FoxProInput, calculate_count_srk
+# from app.domain.engines.foxpro_engine import FoxProInput, calculate_count_srk
+from app.domain.engines.foxpro_engine_new import FoxProInput, calculate_count_srk
 from app.core.i18n import normalize_lang, setlang
 from app.infrastructure.loaders.reference_loader import get_reference_service
 
@@ -93,33 +94,42 @@ def calculate_from_json(payload: Dict[str, Any]) -> Tuple[List[List[Any]], Dict[
     if not article_parts and crime.get("paragraph"):
         article_parts = str(crime.get("paragraph")).zfill(2)
 
-    mitigating = crime.get("mitigating") or crime.get("fs1r571p1")
-    if mitigating is None and crime.get("has_mitigating"):
+    # mitigating = crime.get("mitigating") or crime.get("fs1r571p1")
+    # if mitigating is None and crime.get("has_mitigating"):
+    #     mitigating = "1"
+
+    # aggravating = crime.get("aggravating") or crime.get("fs1r572p1")
+    # if aggravating is None and crime.get("has_aggravating"):
+    #     aggravating = "1"
+
+    mitigating = crime.get("mitigating")
+    if mitigating:
         mitigating = "1"
 
-    aggravating = crime.get("aggravating") or crime.get("fs1r572p1")
-    if aggravating is None and crime.get("has_aggravating"):
+    aggravating = crime.get("aggravating")
+    if aggravating:
         aggravating = "1"
 
-    special_condition = crime.get("special_condition") or crime.get("fs1r573p1") or ""
+    # special_condition = crime.get("special_condition") or crime.get("fs1r573p1") or ""
+    special_condition = crime.get("special_condition") or ""
 
     inp = FoxProInput(
         crime_date=crime_date,
         article_code=article_code,
         article_parts=article_parts,
-        crime_stage=_parse_stage(crime.get("crime_stage") or crime.get("fs1r56p1")),
+        crime_stage=_parse_stage(crime.get("crime_stage")),
         mitigating=str(mitigating or ""),
         aggravating=str(aggravating or ""),
         special_condition=str(special_condition or ""),
         birth_date=_parse_date(person.get("birth_date")),
         gender=_parse_gender(person.get("gender")),
         citizenship=str(person.get("citizenship") or ""),
-        dependents=str(person.get("dependents") or person.get("fs1r21p1") or ""),
-        additional_marks=str(person.get("additional_marks") or person.get("fs1r231p1") or ""),
-        fs1r041p1=str(crime.get("fs1r041p1") or person.get("fs1r041p1") or ""),
-        fs1r042p1=str(crime.get("fs1r042p1") or person.get("fs1r042p1") or ""),
-        fs1r23p1=str(crime.get("fs1r23p1") or person.get("fs1r23p1") or ""),
-        fs1r26p1=str(crime.get("fs1r26p1") or person.get("fs1r26p1") or ""),
+        dependents=str(person.get("dependents") or ""),
+        additional_marks=str(person.get("additional_marks") or ""),
+        fs1r041p1=str(person.get("fs1r041p1") or ""),
+        fs1r042p1=str(person.get("fs1r042p1") or ""),
+        fs1r23p1=str(person.get("fs1r23p1") or ""),
+        fs1r26p1=str(person.get("fs1r26p1") or ""),
         server_date=calc_date,
     )
 

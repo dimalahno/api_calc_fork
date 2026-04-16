@@ -25,6 +25,6 @@ def calculate(payload: CalculateRequest, service: PunishmentService = Depends(ge
 
     return CalculateResponse(
         lang=lang,
-        aNakaz=a_nakaz,
+        # aNakaz=a_nakaz,
         structured=structured,
     )

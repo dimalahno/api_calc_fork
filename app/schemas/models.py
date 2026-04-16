@@ -13,15 +13,15 @@ class PersonIn(BaseModel):
 
     birth_date: Optional[date] = Field(default=None, description="Дата рождения лица (FS1R13P1)")
     gender: Optional[str] = Field(default=None, description="Пол (FS1R15P1): 1=male, 2=female, также male/female")
-    is_recidivist: Optional[bool] = Field(default=False, description="Признак рецидива")
-    has_plea_agreement: Optional[bool] = Field(default=False, description="Наличие процессуального соглашения")
 
     # Extra fields for future FoxPro parity (not used yet)
     citizenship: Optional[str] = Field(default=None, description="Гражданство (FS1R17P1)")
     dependents: Optional[str] = Field(default=None, description="Коды иждивенцев (FS1R21P1), через запятую")
-    additional_marks: Optional[str] = Field(default=None, description="Дополнительные признаки (FS1R231P1), через запятую")
-    special_status: Optional[str] = Field(default=None, description="Специальный статус лица (резерв)")
-    conviction_type: Optional[str] = Field(default=None, description="Тип осуждения (резерв)")
+    additional_marks: Optional[str] = Field(
+        default=None,
+        description="Дополнительные признаки (FS1R231P1), через запятую (осужденный/несовершеннолетний имеющий заработок)"
+    )
+
     fs1r041p1: Optional[str] = Field(default=None, description="Флаг спецпроизводства FS1R041P1")
     fs1r042p1: Optional[str] = Field(default=None, description="Флаг спецпроизводства FS1R042P1")
     fs1r23p1: Optional[str] = Field(default=None, description="Служебное поле формы FS1R23P1")
@@ -42,30 +42,14 @@ class CrimeIn(BaseModel):
         default="3",
         description="Стадия преступления (FS1R56P1): 1=приготовление, 2=покушение, 3=оконченное",
     )
-    has_mitigating: Optional[bool] = Field(
-        default=False,
-        description="Есть смягчающие обстоятельства; если true и mitigating пусто, используется код '1'",
-    )
-    has_aggravating: Optional[bool] = Field(
-        default=False,
-        description="Есть отягчающие обстоятельства; если true и aggravating пусто, используется код '1'",
-    )
 
     # Extra fields for future FoxPro parity (not used yet)
     special_condition: Optional[str] = Field(
         default=None,
         description="Особые условия (FS1R573P1): '', 01, 02, 03, 04, 05",
     )
-    mitigating: Optional[str] = Field(default=None, description="Коды смягчающих (FS1R571P1), через запятую")
-    aggravating: Optional[str] = Field(default=None, description="Коды отягчающих (FS1R572P1), через запятую")
-    fs1r56p1: Optional[str] = Field(default=None, description="Поле формы FS1R56P1 (альтернатива crime_stage)")
-    fs1r571p1: Optional[str] = Field(default=None, description="Поле формы FS1R571P1 (альтернатива mitigating)")
-    fs1r572p1: Optional[str] = Field(default=None, description="Поле формы FS1R572P1 (альтернатива aggravating)")
-    fs1r573p1: Optional[str] = Field(default=None, description="Поле формы FS1R573P1 (альтернатива special_condition)")
-    fs1r041p1: Optional[str] = Field(default=None, description="Флаг спецпроизводства FS1R041P1")
-    fs1r042p1: Optional[str] = Field(default=None, description="Флаг спецпроизводства FS1R042P1")
-    fs1r23p1: Optional[str] = Field(default=None, description="Служебное поле формы FS1R23P1")
-    fs1r26p1: Optional[str] = Field(default=None, description="Служебное поле формы FS1R26P1")
+    mitigating: Optional[str] = Field(default=None, description="Коды смягчающих обстоятельств (FS1R571P1), через запятую")
+    aggravating: Optional[str] = Field(default=None, description="Коды отягчающих обстоятельств (FS1R572P1), через запятую")
 
 
 class CalculateRequest(BaseModel):
@@ -105,7 +89,6 @@ class CalculateResponse(BaseModel):
     """Полный ответ API: язык, массив `aNakaz` и структурированный блок."""
 
     lang: str = Field(description="Язык ответа")
-    aNakaz: List[List[Any]] = Field(description="Строгий массив 15x13 с результатами и внутренними метками")
     structured: StructuredResponse = Field(description="Читаемая структурированная форма результата")
 
 
