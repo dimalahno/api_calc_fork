@@ -1,0 +1,488 @@
+LPARAMETERS tlAllLog
+***********ЭПИЗОДЫ
+LOCAL llProstupokR54, lcADDDop, lnRecnoTSNE, lcRecnoTSNE
+lnRecnoTSNE=RECNO(ICASE(this.typeform='TSN3','TSN3E',this.typeform='TSN4','TSN4E','TSN1E')) 
+lcRecnoTSNE=TRANSFORM(m.lnRecnoTSNE)
+ldDr=ICASE(this.typeform='TSN3',TSN3.FS3R031P4,this.typeform='TSN4',TSN4.FS4R031P4,TSN1.FS1R13P1)
+
+IF !EMPTY(FS1R51P1)
+	pcParamSoob=FS1R51P1
+	lcAddSoobEpzd="Ошибка по эпизоду <<m.pcParamSoob>>"
+	lcAddSoobEpzd=SUBSTR(m.lcAddSoobEpzd,AT('|',m.lcAddSoobEpzd)+1)+' ~'
+
+	**** Рассчитаем возраст на момент совершения преступления 
+	lnFS1R14P1=DDTOMY(m.ldDr, FS1R51P2,2)
+
+	IF FS1R51P2<m.ldDr
+		pcParamSoobAdd=DTOC(m.ldDr)
+		RETURN lcAddSoobEpzd+"Дата совершения правонарушения должна быть введена и она не может быть меньше даты рождения.<<CHR(13)>>Дата рождения: <<m.pcParamSoobAdd>>"+'^grdFS1R51,txtFS1R51P2'
+	ENDIF 
+
+	IF !this.Log_SoobSlv(FS1R56P1,'FS1R56P1','SLVA',1) 
+		RETURN lcAddSoobEpzd+"Значение не соответствует словарю"+'^grdFS1R51,txtFS1R56P1'
+	ENDIF
+
+	IF !this.Log_SoobSlv(FS1R562P1,'FS1R562P1','SLVA',1) 
+		RETURN lcAddSoobEpzd+"Значение не соответствует словарю"+'^grdFS1R51,txtFS1R562P1'
+	ENDIF
+	IF !this.Log_SoobSlv(FS1R563P1,'FS1R563P1','SLVA',1) && 16.11.2017
+		RETURN lcAddSoobEpzd+"Значение не соответствует словарю"+'^grdFS1R51,txtFS1R563P1'
+	ENDIF
+	IF !this.Log_SoobSlv(FS1R564P1,'FS1R564P1','SLVA',1) && 16.11.2017
+		RETURN lcAddSoobEpzd+"Значение не соответствует словарю"+'^grdFS1R51,txtFS1R564P1'
+	ENDIF
+	IF !this.Log_SoobSlv(FS1R565P1,'FS1R565P1','SLVA',1) && 16.11.2017
+		RETURN lcAddSoobEpzd+"Значение не соответствует словарю"+'^grdFS1R51,txtFS1R565P1'
+	ENDIF
+	IF !this.Log_SoobSlv(FS1R566P1,'FS1R566P1','SLVA',1) 
+		RETURN lcAddSoobEpzd+"Значение не соответствует словарю"+'^grdFS1R51,txtFS1R566P1'
+	ENDIF
+	IF !this.Log_SoobSlv(FS1R567P1,'FS1R567P1','SLVA',1) 
+		RETURN lcAddSoobEpzd+"Значение не соответствует словарю"+'^grdFS1R51,txtFS1R567P1'
+	ENDIF
+	IF !this.Log_SoobSlv(FS1R57P1,'FS1R63P1','SLVA',4, IIF(this.typeform='TSN1',['FS1R57P1'$Kodific],['FS2R57P1'$Kodific]))
+		RETURN lcAddSoobEpzd+"Значение не соответствует словарю"+'^grdFS1R51,txtFS1R57P1'
+	ENDIF
+
+	IF !this.Log_SoobSlv(FS1R571P1,'FS1R61P1','SLVA',2)
+		RETURN lcAddSoobEpzd+"Значение не соответствует словарю"+'^grdFS1R51,txtFS1R571P1'
+	ENDIF
+	IF !this.Log_SoobSlv(FS1R572P1,'FS1R62P1','SLVA',2)
+		RETURN lcAddSoobEpzd+"Значение не соответствует словарю"+'^grdFS1R51,txtFS1R572P1'
+	ENDIF
+
+	********** калификация по УК РК 1997 года
+	IF !EMPTY(STRTRAN(FS1R55P1,',','')) AND !FS1R57P1='0000'
+		IF !this.Log_SoobSlv(LEFT(FS1R55P1,5),'F10R15P1','SLVST',5)
+			RETURN lcAddSoobEpzd+"По эпизоду <<m.pcParamSoob>> квалификация не соответствует словарю"+'^grdFS1R51,txtFS1R55P1'
+		ENDIF 
+		IF !EMPTY(SLVST.PUNKT) AND EMPTY(STRTRAN(SUBSTR(FS1R55P1,6),',',''))
+			IF '0'$SLVST.PUNKT
+				IF this.lWarning(3,m.lnRecnoTSNE)
+					RETURN lcAddSoobEpzd+"По эпизоду <<m.pcParamSoob>> указана статья УК РК, которая обычно содержит пункт"+'^lWarning(3,'+m.lcRecnoTSNE+'),grdFS1R51,txtFS1R55P1'
+				ENDIF 
+			ELSE 
+				RETURN lcAddSoobEpzd+"По эпизоду <<m.pcParamSoob>> должен быть введен пункт"+'^grdFS1R51,txtFS1R55P1'
+			ENDIF 	
+		ENDIF 
+		FOR m.lnLine=6 TO LEN(FS1R55P1)
+			IF !SUBSTR(FS1R55P1,m.lnLine,1)$SLVST.PUNKT OR SUBSTR(FS1R55P1,m.lnLine,1)='0'
+				pcParamSoobAdd=SUBSTR(FS1R55P1,m.lnLine,1)	
+				RETURN lcAddSoobEpzd+"По эпизоду <<m.pcParamSoob>> указана статья, у которой пункта <<m.pcParamSoobAdd>> нет"+'^grdFS1R51,txtFS1R55P1'
+			ENDIF 
+		ENDFOR 
+	ENDIF 
+	IF EMPTY(FS1R54P1) AND !FS1R57P1='0000'
+		RETURN lcAddSoobEpzd+"Должна быть указана учетная квалификация по эпизоду <<m.pcParamSoob>><<CHR(13)>>Незаивисмо от того осужден он по статье УК 1997 года или по новой"+'^grdFS1R51,txtFS1R54P1'
+	ENDIF 
+	IF EMPTY(FS1R51P2)
+		RETURN lcAddSoobEpzd+"Дата совершения правонарушения должна быть указана"+'^grdFS1R51,txtFS1R51P2'
+	ENDIF 
+
+	IF !this.Log_SoobSlvSt(FS1R54P1,'FE1R10P1','SLVST',7,FS1R51P2)		&& 16.11.2017
+		RETURN lcAddSoobEpzd+"По эпизоду <<m.pcParamSoob>> квалификация не соответствует словарю"+'^grdFS1R51,txtFS1R54P1'
+	ENDIF 
+
+	IF !FS1R57P1$'7067,7068,7069,7010,7020,0000,7001,0001' 
+		IF EMPTY(FS1R56P1)		&& 16.11.2017
+			RETURN lcAddSoobEpzd+"Реквизит по ст.24 УК РК должен быть заполнен"+'^grdFS1R51,txtFS1R56P1'
+		ENDIF 
+
+		IF EMPTY(FS1R562P1)	
+			RETURN lcAddSoobEpzd+"Реквизит "Сведения о наличии ущерба и его возмещении" должен быть заполнен"+'^grdFS1R51,txtFS1R562P1'
+		ENDIF 
+		
+		IF FS1R562P1='3' AND !'06'$FS1R571P1 	&&03.04.2026
+			RETURN lcAddSoobEpzd+SetLangLog(6818)+'^grdFS1R51,txtFS1R562P1,txtFS1R571P1'
+		ENDIF 
+		
+		IF EMPTY(FS1R563P1)		&& 25.05.2018
+			RETURN lcAddSoobEpzd+"Реквизит "По ст.28 УК РК (соучастие)" должен быть заполнен, если совершено одним лицом или при эксцессе соучастника, то необходимо указать "совершено одним лицом""+'^grdFS1R51,txtFS1R563P1'
+		ENDIF 
+
+		IF EMPTY(FS1R564P1)		&& 16.11.2017
+			RETURN lcAddSoobEpzd+"Реквизит "Вид группы в качестве признака состава" должен быть заполнен"+'^grdFS1R51,txtFS1R564P1'
+		ENDIF 
+		IF EMPTY(FS1R565P1)		&& 16.11.2017
+			RETURN lcAddSoobEpzd+"Реквизит "В каком состоянии совершено правонарушение" должен быть заполнен"+'^grdFS1R51,txtFS1R565P1'
+		ENDIF 
+		IF EMPTY(FS1R566P1)	
+			RETURN lcAddSoobEpzd+"Реквизит "Сведения о применении насилия при совершении преступления" должен быть заполнен"+'^grdFS1R51,txtFS1R566P1'
+		ENDIF 
+		IF EMPTY(FS1R567P1)	
+			RETURN lcAddSoobEpzd+SetLangLog(6816)+'^grdFS1R51,txtFS1R567P1'
+		ENDIF 
+
+		IF FS1R566P1<>'3'	&& с применением насилия в отношении несовершеннолетних
+			IF !EMPTY(SLVST.FS1R566_3o)
+				IF SLVST.FS1R566_3o='ALL'
+					pcParamSoob = TRIM(SLVST.Stat)
+					RETURN lcAddSoobEpzd+SetLangLog(6825)+'^grdFS1R51,txtFS1R566P1'
+				ELSE 
+					pcParamSoob = this.log_stati(FS1R54P2, SLVST.FS1R566_3o,'=')
+					IF TYPE('pcParamSoob')='C'
+						RETURN lcAddSoobEpzd+SetLangLog(6825)+'^grdFS1R51,txtFS1R566P1'
+					ENDIF 
+				ENDIF 	
+			ENDIF 	
+		ENDIF 	
+
+		IF FS1R567P1<>'1'	&& связанное с посягательством на жизнь и здоровье человека
+			IF !EMPTY(SLVST.FS1R567_1o)
+				IF SLVST.FS1R567_1o='ALL'
+					pcParamSoob = TRIM(SLVST.Stat)
+					RETURN lcAddSoobEpzd+SetLangLog(6831)+'^grdFS1R51,txtFS1R567P1'
+				ELSE 
+					pcParamSoob = this.log_stati(FS1R54P2, SLVST.FS1R567_1o,'=')
+					IF TYPE('pcParamSoob')='C'
+						RETURN lcAddSoobEpzd+SetLangLog(6831)+'^grdFS1R51,txtFS1R567P1'
+					ENDIF 
+				ENDIF 	
+			ENDIF 	
+		ENDIF 	
+
+		IF FS1R567P1='2'	&& связанное с умышленным причинением смерти человеку 
+			IF EMPTY(SLVST.FS1R567_2)
+				pcParamSoob = TRIM(SLVST.Stat)
+				RETURN lcAddSoobEpzd+SetLangLog(6823)+'^grdFS1R51,txtFS1R567P1'
+			ENDIF 
+		ELSE 
+			IF !EMPTY(SLVST.FS1R567_2)
+				IF SLVST.FS1R567_2='ALL'
+					pcParamSoob = TRIM(SLVST.Stat)
+					RETURN lcAddSoobEpzd+SetLangLog(6824)+'^grdFS1R51,txtFS1R567P1'
+				ELSE 
+					pcParamSoob = this.log_stati(FS1R54P2, SLVST.FS1R567_2,'=')
+					IF TYPE('pcParamSoob')='C'
+						RETURN lcAddSoobEpzd+SetLangLog(6824)+'^grdFS1R51,txtFS1R567P1'
+					ENDIF 
+				ENDIF 	
+			ENDIF 	
+		ENDIF 	
+
+		IF FS1R567P1<>'4'	&& против половой неприкосновенности малолетних (до 14 лет)
+			IF !EMPTY(SLVST.FS1R567_4o)
+				IF SLVST.FS1R567_4o='ALL'
+					pcParamSoob = TRIM(SLVST.Stat)
+					RETURN lcAddSoobEpzd+SetLangLog(6826)+'^grdFS1R51,txtFS1R567P1'
+				ELSE 
+					pcParamSoob = this.log_stati(FS1R54P2, SLVST.FS1R567_4o,'=')
+					IF TYPE('pcParamSoob')='C'
+						RETURN lcAddSoobEpzd+SetLangLog(6826)+'^grdFS1R51,txtFS1R567P1'
+					ENDIF 
+				ENDIF 	
+			ENDIF 	
+		ENDIF 	
+				
+		IF FS1R567P1<>'3' AND FS1R567P1<>'4'	&& против половой неприкосновенности несовершеннолетних + малолетние
+			IF !EMPTY(SLVST.FS1R567_3o)
+				IF SLVST.FS1R567_3o='ALL'
+					pcParamSoob = TRIM(SLVST.Stat)
+					RETURN lcAddSoobEpzd+SetLangLog(6827)+'^grdFS1R51,txtFS1R567P1'
+				ELSE 
+					pcParamSoob = this.log_stati(FS1R54P2, SLVST.FS1R567_3o,'=')
+					IF TYPE('pcParamSoob')='C'
+						RETURN lcAddSoobEpzd+SetLangLog(6827)+'^grdFS1R51,txtFS1R567P1'
+					ENDIF 
+				ENDIF 	
+			ENDIF 	
+		ENDIF 	
+		*** отягчающие по статьям и пунктам не применяются 
+		IF '21'$FS1R572P1 && 21 - неоднократность уголовных правонарушений
+			IF !EMPTY(SLVST.FS1R62_21)
+				IF SLVST.FS1R62_21='ALL'
+					pcParamSoob = TRIM(SLVST.Stat)
+					RETURN lcAddSoobEpzd+SetLangLog(6832)+'^grdFS1R51,txtFS1R572P1'
+				ELSE 
+					pcParamSoob = this.log_stati(FS1R54P2, SLVST.FS1R62_21,'=')
+					IF TYPE('pcParamSoob')='C'
+						RETURN lcAddSoobEpzd+SetLangLog(6832)+'^grdFS1R51,txtFS1R572P1'
+					ENDIF 
+				ENDIF 	
+			ENDIF 	
+		ENDIF 		
+		IF '02'$FS1R572P1 && 02 - причинение уголовным правонарушением тяжких последствий
+			IF !EMPTY(SLVST.FS1R62_02)
+				IF SLVST.FS1R62_02='ALL'
+					pcParamSoob = TRIM(SLVST.Stat)
+					RETURN lcAddSoobEpzd+SetLangLog(6833)+'^grdFS1R51,txtFS1R572P1'
+				ELSE 
+					pcParamSoob = this.log_stati(FS1R54P2, SLVST.FS1R62_02,'=')
+					IF TYPE('pcParamSoob')='C'
+						RETURN lcAddSoobEpzd+SetLangLog(6833)+'^grdFS1R51,txtFS1R572P1'
+					ENDIF 
+				ENDIF 	
+			ENDIF 	
+		ENDIF 		
+
+		IF '03'$FS1R572P1 && 03 - совершение уголовного правонарушения в составе группы лиц, группы лиц по предварительному сговору, преступной группы
+			IF !EMPTY(SLVST.FS1R62_03)
+				IF SLVST.FS1R62_03='ALL'
+					pcParamSoob = TRIM(SLVST.Stat)
+					RETURN lcAddSoobEpzd+SetLangLog(6834)+'^grdFS1R51,txtFS1R572P1'
+				ELSE 
+					pcParamSoob = this.log_stati(FS1R54P2, SLVST.FS1R62_03,'=')
+					IF TYPE('pcParamSoob')='C'
+						RETURN lcAddSoobEpzd+SetLangLog(6834)+'^grdFS1R51,txtFS1R572P1'
+					ENDIF 
+				ENDIF 	
+			ENDIF 	
+		ENDIF 			
+
+		IF '05'$FS1R572P1 && 05 - привлечение к совершению уголовного правонарушения лиц, которые заведомо для виновного страдают тяжелым психическим, поведенческим расстройством (заболеванием), либо лиц, не достигших возраста, с которого наступает уголовная ответственность
+			IF !EMPTY(SLVST.FS1R62_05)
+				IF SLVST.FS1R62_05='ALL'
+					pcParamSoob = TRIM(SLVST.Stat)
+					RETURN lcAddSoobEpzd+SetLangLog(6835)+'^grdFS1R51,txtFS1R572P1'
+				ELSE 
+					pcParamSoob = this.log_stati(FS1R54P2, SLVST.FS1R62_05,'=')
+					IF TYPE('pcParamSoob')='C'
+						RETURN lcAddSoobEpzd+SetLangLog(6835)+'^grdFS1R51,txtFS1R572P1'
+					ENDIF 
+				ENDIF 	
+			ENDIF 	
+		ENDIF 			
+
+		IF '06'$FS1R572P1 && 06 - совершение уголовного правонарушения по мотиву национальной, расовой и религиозной ненависти или вражды, из мести за правомерные действия других лиц
+			IF !EMPTY(SLVST.FS1R62_06)
+				IF SLVST.FS1R62_06='ALL'
+					pcParamSoob = TRIM(SLVST.Stat)
+					RETURN lcAddSoobEpzd+SetLangLog(6836)+'^grdFS1R51,txtFS1R572P1'
+				ELSE 
+					pcParamSoob = this.log_stati(FS1R54P2, SLVST.FS1R62_06,'=')
+					IF TYPE('pcParamSoob')='C'
+						RETURN lcAddSoobEpzd+SetLangLog(6836)+'^grdFS1R51,txtFS1R572P1'
+					ENDIF 
+				ENDIF 	
+			ENDIF 	
+		ENDIF 
+
+		IF '07'$FS1R572P1 && 07 - совершение уголовного правонарушения в отношении женщины, заведомо для виновного находящейся в состоянии беременности, а также в отношении малолетнего   
+			*** 5 знаков 
+			IF !EMPTY(SLVST.FS1R62_07)
+				IF SLVST.FS1R62_07='ALL'
+					pcParamSoob = TRIM(SLVST.Stat)
+					RETURN lcAddSoobEpzd+SetLangLog(6837)+'^grdFS1R51,txtFS1R572P1'
+				ELSE 
+					pcParamSoob = this.log_stati(FS1R54P2, SLVST.FS1R62_07,'=')
+					IF TYPE('pcParamSoob')='C'
+						RETURN lcAddSoobEpzd+SetLangLog(6837)+'^grdFS1R51,txtFS1R572P1'
+					ENDIF 
+				ENDIF 	
+			ENDIF 	
+		ENDIF 
+
+		IF '08'$FS1R572P1 && 08 - совершение уголовного правонарушения в отношении лица или его близких в связи с выполнением данным лицом своего служебного, профессионального долга
+			IF !EMPTY(SLVST.FS1R62_08)
+				IF SLVST.FS1R62_08='ALL'
+					pcParamSoob = TRIM(SLVST.Stat)
+					RETURN lcAddSoobEpzd+SetLangLog(6838)+'^grdFS1R51,txtFS1R572P1'
+				ELSE 
+					pcParamSoob = this.log_stati(FS1R54P2, SLVST.FS1R62_08,'=')
+					IF TYPE('pcParamSoob')='C'
+						RETURN lcAddSoobEpzd+SetLangLog(6838)+'^grdFS1R51,txtFS1R572P1'
+					ENDIF 
+				ENDIF 	
+			ENDIF 	
+		ENDIF 
+
+		IF '09'$FS1R572P1 && 09 - совершение уголовного правонарушения с особой жестокостью, садизмом, издевательством, а также мучениями для потерпевшего
+			IF !EMPTY(SLVST.FS1R62_09)
+				IF SLVST.FS1R62_09='ALL'
+					pcParamSoob = TRIM(SLVST.Stat)
+					RETURN lcAddSoobEpzd+SetLangLog(6839)+'^grdFS1R51,txtFS1R572P1'
+				ELSE 
+					pcParamSoob = this.log_stati(FS1R54P2, SLVST.FS1R62_09,'=')
+					IF TYPE('pcParamSoob')='C'
+						RETURN lcAddSoobEpzd+SetLangLog(6839)+'^grdFS1R51,txtFS1R572P1'
+					ENDIF 
+				ENDIF 	
+			ENDIF 	
+		ENDIF 
+
+		IF '10'$FS1R572P1 && 10 - совершение уголовного правонарушения с использованием оружия, боевых припасов, взрывчатых веществ, взрывных или имитирующих их устройств
+			IF !EMPTY(SLVST.FS1R62_10)
+				IF SLVST.FS1R62_10='ALL'
+					pcParamSoob = TRIM(SLVST.Stat)
+					RETURN lcAddSoobEpzd+SetLangLog(6840)+'^grdFS1R51,txtFS1R572P1'
+				ELSE 
+					pcParamSoob = this.log_stati(FS1R54P2, SLVST.FS1R62_10,'=')
+					IF TYPE('pcParamSoob')='C'
+						RETURN lcAddSoobEpzd+SetLangLog(6840)+'^grdFS1R51,txtFS1R572P1'
+					ENDIF 
+				ENDIF 	
+			ENDIF 	
+		ENDIF 
+
+		IF '11'$FS1R572P1 && 11 - совершение уголовного правонарушения в условиях чрезвычайного положения, чрезвычайной ситуации, а также в ходе массовых беспорядков
+			*** 5 знаков 
+			IF !EMPTY(SLVST.FS1R62_11)
+				IF SLVST.FS1R62_11='ALL'
+					pcParamSoob = TRIM(SLVST.Stat)
+					RETURN lcAddSoobEpzd+SetLangLog(6841)+'^grdFS1R51,txtFS1R572P1'
+				ELSE 
+					pcParamSoob = this.log_stati(FS1R54P2, SLVST.FS1R62_11,'=')
+					IF TYPE('pcParamSoob')='C'
+						RETURN lcAddSoobEpzd+SetLangLog(6841)+'^grdFS1R51,txtFS1R572P1'
+					ENDIF 
+				ENDIF 	
+			ENDIF 	
+		ENDIF 
+
+		IF '12'$FS1R572P1 && 12 - совершение уголовного правонарушения в состоянии алкогольного, наркотического или токсикоманического опьянения
+			IF !EMPTY(SLVST.FS1R62_12)
+				IF SLVST.FS1R62_12='ALL'
+					pcParamSoob = TRIM(SLVST.Stat)
+					RETURN lcAddSoobEpzd+SetLangLog(6842)+'^grdFS1R51,txtFS1R572P1'
+				ELSE 
+					pcParamSoob = this.log_stati(FS1R54P2, SLVST.FS1R62_12,'=')
+					IF TYPE('pcParamSoob')='C'
+						RETURN lcAddSoobEpzd+SetLangLog(6843)+'^grdFS1R51,txtFS1R572P1'
+					ENDIF 
+				ENDIF 	
+			ENDIF 	
+		ENDIF 
+
+		IF '16'$FS1R572P1 && 16 - совершение правонарушения сотрудником правоохранительного или специального государственного органа, судьей с использованием служебного положения
+			IF !EMPTY(SLVST.FS1R62_16)
+				IF SLVST.FS1R62_16='ALL'
+					pcParamSoob = TRIM(SLVST.Stat)
+					RETURN lcAddSoobEpzd+SetLangLog(6843)+'^grdFS1R51,txtFS1R572P1'
+				ELSE 
+					pcParamSoob = this.log_stati(FS1R54P2, SLVST.FS1R62_16,'=')
+					IF TYPE('pcParamSoob')='C'
+						RETURN lcAddSoobEpzd+SetLangLog(6843)+'^grdFS1R51,txtFS1R572P1'
+					ENDIF 
+				ENDIF 	
+			ENDIF 	
+		ENDIF 
+
+
+
+
+
+		IF EMPTY(FS1R561P1) 
+			DO CASE 
+				CASE 'xN'$SLVST.FS1R64_05x 		&& AND LEFT(FS1R54P1,5)$'36600,36700,36800'
+					RETURN m.lcAddSoobEpzd+"Размер взятки по данному преступлению должен быть указан"+'^grdFS1R51,txtFS1R561P1'
+				CASE 'xK'$SLVST.FS1R64_05x 		&& AND LEFT(FS1R54P1,5)$'36600,36700,36800'
+					RETURN m.lcAddSoobEpzd+"Размер полученного дохода (причиненного ущерба) по данному преступлению должен быть указан"+'^grdFS1R51,txtFS1R561P1'
+			ENDCASE 	
+		ENDIF 
+	ENDIF 		
+	IF EMPTY(FS1R57P1)
+		RETURN lcAddSoobEpzd+"Решение по эпизоду должно быть указано"+'^grdFS1R51,txtFS1R57P1'
+	ENDIF 
+
+	IF !this.Log_SoobSlv(FS1R54P2,'FE1R10P2','SLVA',2,'TRIM(SLVA.P2)$SLVST.PUNKT')
+		RETURN lcAddSoobEpzd+"По эпизоду <<m.pcParamSoob>> пункт не соответствует словарю"+'^grdFS1R51,txtFS1R54P2'
+	ENDIF 
+	IF !FS1R563P1$'1,2,3,4' AND FS1R564P1$'1,2,3' && 16.11.2017
+		RETURN lcAddSoobEpzd+"Если в реквизите 56.4 в качестве признака состава указана группа то в реквизите 56.3 должен быть указан вид группы"+'^grdFS1R51,txtFS1R563P1,txtFS1R564P1'
+	ENDIF 
+		
+	IF !EMPTY(slvst.punkt) 
+		IF EMPTY(FS1R54P2) AND !FS1R57P1='0000'
+			IF '00'$SLVST.PUNKT
+				IF this.lWarning(2,m.lnRecnoTSNE)
+					RETURN lcAddSoobEpzd+"Данная статья УК РК обычно содержит пункт"+'^lWarning(2,'+m.lcRecnoTSNE+'),grdFS1R51,txtFS1R54P2'
+				ENDIF 
+			ELSE 
+				RETURN lcAddSoobEpzd+"По эпизоду <<m.pcParamSoob>> должен быть введен пункт"+'^grdFS1R51,txtFS1R54P2'
+			ENDIF 
+		ENDIF
+	ELSE 
+		IF !EMPTY(FS1R54P2)
+			RETURN lcAddSoobEpzd+"По эпизоду <<m.pcParamSoob>> указана статья у которой пунктов нет"+'^grdFS1R51,txtFS1R54P2'
+		ENDIF
+	ENDIF 
+
+	*** создаем массив сроков наказания и заполняем его 
+	DIMENSION aNakaz[16,13]
+	this.count_srk(FS1R51P2, FS1R54P1, FS1R54P2, FS1R56P1, FS1R571P1, FS1R572P1, FS1R573P1, FS1R566P1, FS1R567P1)
+	llProstupokR54=(SLVST.Prest='2')
+
+	IF !this.Log_SoobSlv(FS1R58P1,'FS1R64P1','SLVA',2,[TRIM(SLVA.P2)$]+IIF(FS1R57P1='7093',["13"],["]+IIF(FS1R573P1='02',SLVST.FS1R64_nn, SLVST.FS1R64-","-SLVST.FS1R64_ADD)+["]))
+		RETURN lcAddSoobEpzd+"Значение не соответствует словарю"+'^grdFS1R51,txtFS1R58P1'
+	ENDIF
+
+	*** Дополнительные меры наказания по пунктам 
+	lcADDDop=this.log_add_dop(FS1R54P1, FS1R54P2)+IIF(FS1R573P1='05',',02,22','')
+	IF !this.Log_SoobSlv(FS1R59P1,'FL3R60P1','SLVA',2,[TRIM(SLVA.P2)$']+m.lcADDDop+['])
+		RETURN lcAddSoobEpzd+"Значение не соответствует словарю"+'^grdFS1R51,txtFS1R59P1'
+	ENDIF
+
+	IF FS1R57P1$'7075,7077,7079,7093' 
+		IF EMPTY(FS1R58P1)
+			RETURN m.lcAddSoobEpzd+"Реквизит "Основные меры наказания должен быть заполнен", если реквизит "решение" - осужден с назначение наказания/применены меры мед-характера"+'^grdFS1R51,txtFS1R58P1'
+		ENDIF 
+	ELSE 
+		IF !EMPTY(STRTRAN(FS1R59P1,',',''))
+			RETURN m.lcAddSoobEpzd+"Реквизит "Дополнительные меры наказания", заполняется только при решении в отношении лица равном 7075,7077,7079,7093"+'^grdFS1R51,txtFS1R59P1'
+		ENDIF 
+	ENDIF 
+
+	IF FS1R57P1='7093'
+		IF FS1R58P1<>'13'
+			RETURN m.lcAddSoobEpzd+"Если в реквизит "Окончательное решение по лицу" равен 7093-применены меры медицинского характера, то реквизит "Основные меры наказания" должен быть равен 13"+'^grdFS1R51,txtFS1R58P1'
+		ENDIF 
+	ELSE 
+		IF FS1R58P1='13'
+			RETURN m.lcAddSoobEpzd+"В реквизите "Основные меры наказания" код 13-меры медицинского характера, проставляется только если реквизит "Окончательное решение по лицу" равен 7093-применены меры медицинского характера"+'^grdFS1R51,txtFS1R58P1'
+		ENDIF 
+	ENDIF 
+
+***** Заполнение реквизитов сроков
+	IF FS1R58P1$'05,06'	&& штраф и исправ работы
+		IF EMPTY(FS1R58P6) OR EMPTY(FS1R58P7)
+			RETURN m.lcAddSoobEpzd+"Если в реквизите "Основная мера наказания" указана мера наказания 05-штраф или 06-исправительные работы, то должна быть указана и сумма наложенного штрафа/размер исправительных работ"+'^grdFS1R51,txtFS1R58P6'
+		ENDIF 
+		IF !EMPTY(FS1R58P2) OR !EMPTY(FS1R58P3) OR !EMPTY(FS1R58P4) OR !EMPTY(FS1R58P5)
+			RETURN m.lcAddSoobEpzd+"При назначении мер наказания 05-штраф, 06-исправительные работы реквизиты срок лет/месяцев/дней/часов должны быть пустыми"+'^grdFS1R51,txtFS1R58P2,txtFS1R58P3,txtFS1R58P4,txtFS1R58P5'	
+		ENDIF 
+	ELSE 
+		IF !EMPTY(FS1R58P6) OR !EMPTY(FS1R58P7)
+			RETURN m.lcAddSoobEpzd+"Сумма наложенного штрафа/размер ИР указывается только если реквизит "Основная мера наказания" равен 05-штраф или 06-исправительные работы"+'^grdFS1R51,txtFS1R58P6,txtFS1R58P7'
+		ENDIF 
+	ENDIF 
+	IF FS1R58P1='09'	&& Общественные работы 
+		IF EMPTY(FS1R58P5)
+			RETURN m.lcAddSoobEpzd+"При назначении меры наказания 09-общественные работы, должно быть указано на какое количество часов применена эта мера наказания"+'^grdFS1R51,txtFS1R58P5'
+		ENDIF 
+		IF !EMPTY(FS1R58P2) OR !EMPTY(FS1R58P3) OR !EMPTY(FS1R58P4) OR !EMPTY(FS1R58P6) OR !EMPTY(FS1R58P7)
+			RETURN m.lcAddSoobEpzd+"При назначении наказания 09-привлечение к ощественным работам реквизиты срок лет/месяцев/дней и размер штрафа должны быть пустыми"+'^grdFS1R51,txtFS1R58P2,txtFS1R58P3,txtFS1R58P4,txtFS1R58P6,txtFS1R58P7'	
+		ENDIF 
+	ELSE 	
+		IF !EMPTY(FS1R58P5)
+			RETURN m.lcAddSoobEpzd+"Срок (часов) заполняется только при назначении меры наказания 09-привлечение к общественным работам"+'^grdFS1R51,txtFS1R58P5'
+		ENDIF 
+	ENDIF 
+	IF FS1R58P1$'01,11' 
+		IF EMPTY(FS1R58P2) AND EMPTY(FS1R58P3) AND EMPTY(FS1R58P4)
+			RETURN m.lcAddSoobEpzd+"При назначении меры наказания 01-лишение свободы или 11-ограничению свободы должно быть указано на какой срок лет/месяцев/дней"+'^grdFS1R51,txtFS1R58P2,txtFS1R58P3,txtFS1R58P4'
+		ENDIF 
+	ENDIF 
+	IF FS1R58P1$'01,11,13' 
+		IF !EMPTY(FS1R58P5) OR !EMPTY(FS1R58P6) OR !EMPTY(FS1R58P7)
+			RETURN m.lcAddSoobEpzd+"При назначении мер наказания 01-лишение свободы, 11-ограничение свободы или 13-меры мед.характера реквизит срок часов и размер штрафа должны быть пустыми"+'^grdFS1R51,txtFS1R58P5,txtFS1R58P6,txtFS1R58P7'
+		ENDIF 
+	ENDIF 
+	IF FS1R58P1='12' 
+		IF EMPTY(FS1R58P4)	
+			RETURN m.lcAddSoobEpzd+"При назначении наказания 12-арест, долен быть заполнен реквизит на какое количество суток назначен арест"+'^grdFS1R51,txtFS1R58P4'
+		ENDIF 
+		IF !EMPTY(FS1R58P2) OR !EMPTY(FS1R58P3) OR !EMPTY(FS1R58P5) OR !EMPTY(FS1R58P6)	OR !EMPTY(FS1R58P7)		
+			RETURN m.lcAddSoobEpzd+"При назначении наказания 12-арест, реквизиты срок лет/месяцев/часов и размер штрафа должны быть пустыми"+'^grdFS1R51,txtFS1R58P2,txtFS1R58P3,txtFS1R58P5,txtFS1R58P6,txtFS1R58P7'
+		ENDIF 
+	ENDIF 
+	IF FS1R58P1$'02,03'	AND (!EMPTY(FS1R58P2) OR !EMPTY(FS1R58P3) OR !EMPTY(FS1R58P4) OR !EMPTY(FS1R58P5) OR !EMPTY(FS1R58P6) OR !EMPTY(FS1R58P7))
+		RETURN m.lcAddSoobEpzd+"При назначении наказания 02-смертная казнь или 03-пожизненное лишение свободы реквизиты срок и штраф не заполняются"+'^grdFS1R51,txtFS1R58P2,txtFS1R58P3,txtFS1R58P4,txtFS1R58P5,txtFS1R58P6,txtFS1R58P7'
+	ENDIF 
+	******************
+	IF FS1R58P1='99' AND EMPTY(FS1R55P1)	
+		RETURN m.lcAddSoobEpzd+"В реквизите "Основная мера наказания" - "лишение права занимать определенную должность или заниматься определенной деятельностью" может быть указано только по преступлениям квалифицированным по УК РК 1997 года"+'^grdFS1R51,txtFS1R58P1'
+	ENDIF 
+
+	RETURN this.log_proc_smgr_rtf(m.tlAllLog, m.lcAddSoobEpzd )
+ENDIF 
+
