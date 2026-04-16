@@ -17,8 +17,8 @@ def reference_status(ref: ReferenceService = Depends(get_reference)) -> Referenc
     return ReferenceStatusResponse(source=ref.source, count=ref.count, file_path=ref.file_path)
 
 
-@router.post("/reference/reload")
-def reference_reload(ref: ReferenceService = Depends(get_reference)) -> dict:
-    """Принудительно перечитывает справочник из источника."""
-    ref.reload()
-    return {"status": "reloaded", "count": ref.count, "source": ref.source}
+# @router.post("/reference/reload")
+# def reference_reload(ref: ReferenceService = Depends(get_reference)) -> dict:
+#     """Принудительно перечитывает справочник из источника."""
+#     ref.reload()
+#     return {"status": "reloaded", "count": ref.count, "source": ref.source}

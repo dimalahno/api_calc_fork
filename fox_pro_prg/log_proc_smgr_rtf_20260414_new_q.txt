@@ -1,0 +1,298 @@
+LPARAMETERS m.tlAllLog, lcAddSoobEpzd
+LOCAL lnFS1R14P1, lnSrkNakaz
+
+
+lnFS1R14P1=DDTOMY(TSN1.FS1R13P1, FS1R51P2,2) && Возраст на момент совершения преступления 
+IF m.tlAllLog 
+	IF '04'$FS1R59P1 AND !TSN1.FS1R17P1$'2,3,4'
+		RETURN m.lcAddSoobEpzd+"Дополнительная мера наказания в виде выдворения за пределы РК иностранца или лица без гражданства назначается только иностранцам и лицам без гражданства"+'^grdFS1R51,txtFS1R59P1'
+	ENDIF 
+	IF '05'$FS1R59P1 AND TSN1.FS1R17P1<>'1'
+		RETURN m.lcAddSoobEpzd+"Дополнительная мера наказания в виде лишения гражданства, назначается только гражданам Республики Казахстан"+'^grdFS1R51,txtFS1R59P1'
+	ENDIF 
+	IF m.lnFS1R14P1<18
+		IF '22'$FS1R59P1 
+			RETURN m.lcAddSoobEpzd+"Несовершеннолетним пожизненное лишение права занимать определенную должность или заниматься определенной деятельностью не назначается"+'^grdFS1R51,txtFS1R59P1'
+		ENDIF 
+		IF '01'$FS1R59P1	&& конфискаяция имущества
+			RETURN m.lcAddSoobEpzd+"Конфискация имущества не назначается несовершеннолетним (ч.1ст.81 УК РК)"+'^grdFS1R51,txtFS1R59P1'
+		ENDIF 
+		IF '03'$FS1R59P1	&&лишение воинского звания 
+			RETURN m.lcAddSoobEpzd+"Лишение специального, воинского или почетного звания классного чина, дипломатического ранга, квалификационного класса и государственных наград не назначается несовершеннолетним (ч.1ст.81 УК РК)"+'^grdFS1R51,txtFS1R59P1'
+		ENDIF 
+		IF '04'$FS1R59P1	&&выдворение за пределы РК
+			RETURN m.lcAddSoobEpzd+"Выдворение за пределы РК иностранца или лица без гражданства не назначается несовершеннолетним (ч.1ст.81 УК РК)"+'^grdFS1R51,txtFS1R59P1'
+		ENDIF 
+		IF '05'$FS1R59P1	&&лишение гражданства 
+			RETURN m.lcAddSoobEpzd+"Лишение гражданства не назначается несовершеннолетним (ч.2 ст.50-1 УК РК)"+'^grdFS1R51,txtFS1R59P1' && 16.11.2017
+		ENDIF 
+	ENDIF 
+ENDIF 
+
+IF '01'$FS1R573P1 OR '02'$FS1R573P1 OR '03'$FS1R573P1 OR '04'$FS1R573P1
+	IF ((FS1R566P1='3' OR FS1R567P1='3') AND m.lnFS1R14P1>=18) OR ;
+		FS1R567P1='2' OR FS1R567P1='4'
+		RETURN m.lcAddSoobEpzd+SetLangLog(6817)+'^grdFS1R51,txtFS1R573P1,txtFS1R566P1,txtFS1R567P1'
+	ENDIF 
+ENDIF 
+
+
+IF '02'$FS1R59P1 	&& дополнительная мера наказания лишения права 
+	IF EMPTY(FS1R60P1) AND EMPTY(FS1R60P2) AND EMPTY(FS1R60P3)
+		RETURN m.lcAddSoobEpzd+"Если в качестве дополнительной меры наказания указана "лишение права занимать определенную должность или заниматься определенной деятельностью", то должен быть указан на какой срок"+'^grdFS1R51,txtFS1R60P1,txtFS1R60P2,txtFS1R60P3'
+	ENDIF 
+	lnSrkNakaz=FS1R60P1+(FS1R60P2/100)+(FS1R60P3/10000)
+
+	IF !EMPTY(aNakaz[11,5]) AND m.lnSrkNakaz<aNakaz[11,5]
+		m.pcParamSoobAdd=LTRIM(STR(aNakaz[11,5]))+' '+DMYTORUS(aNakaz[11,5],3,'D')
+		RETURN m.lcAddSoobEpzd+"По данной статье УК РК, срок лишения права занимать определенную должность или заниматься определенной деятельностью не должен быть меньше "<<m.pcParamSoobAdd>>""+'^grdFS1R51,txtFS1R60P1,txtFS1R60P2,txtFS1R60P3'
+	ENDIF 
+		
+	IF !EMPTY(aNakaz[11,6]) AND m.lnSrkNakaz>aNakaz[11,6]
+		m.pcParamSoobAdd=LTRIM(STR(aNakaz[11,6]))+' '+DMYTORUS(aNakaz[11,6],3,'D')
+		RETURN m.lcAddSoobEpzd+"По данной статье УК РК, срок лишения права занимать определенную должность или заниматься определенной деятельностью не должен быть больше "<<m.pcParamSoobAdd>>""+'^grdFS1R51,txtFS1R60P1,txtFS1R60P2,txtFS1R60P3'
+	ENDIF 
+ENDIF 	
+IF '01'$FS1R59P1 AND TSN1.FS1R651P1<>'1'	&& дополнительная мера наказания конфискация имущества 	&& 07.02.2018
+		RETURN m.lcAddSoobEpzd+"Конфискация имущества назначается только если доказано наличие имущества подлежащего конфискации"+'^grdFS1R51,txtFS1R59P1'
+ENDIF 
+	
+IF FS1R573P1='05'	&& лишение права если его нет в статье
+	IF !'02'$FS1R59P1 AND !'22'$FS1R59P1
+		RETURN m.lcAddSoobEpzd+"В реквизите 57.3 указано, что применена ч.3 ст.50 УК РК назначена дополнительная мера наказания лишения права, однако данный вид наказания не указан в реквизите "дополнительное наказание""+'^grdFS1R51,txtFS1R59P1'
+	ENDIF 
+	IF '02'$SLVST.FS1R65_O OR ;
+		('22'$SLVST.FS1R65_O AND !'02'$FS1R59P1 AND !'02'$SLVST.FS1R65_O)
+		RETURN m.lcAddSoobEpzd+"В реквизите 57.3 указано, что применена ч.3 ст.50 УК РК назначена дополнительная мера наказания лишения права которая не предусмотрена санкцией статьи, однако санкция данной статьи предусматривает лишение права"+'^grdFS1R51,txtFS1R59P1'
+	ENDIF 
+ENDIF 
+*->* Обязательная дополнительная мера наказания 
+*->* Не будем требовать для несовершеннолетнего конфискацию, лишение права, выдворение	
+IF FS1R57P1$'7075,7077,7079' 
+	lcDnObaz=''
+	IF !EMPTY(SLVST.FS1R65_O)
+		lcDnObaz=IIF(aNakaz[9,2], '04,','')+IIF(aNakaz[10,2], '22,','')+IIF(aNakaz[11,2], '02,','')
+		IF m.tlAllLog
+			IF aNakaz[8,2] AND !TSN1.FS1R70P1='01'
+				lcDnObaz=m.lcDnObaz+'01,'
+			ENDIF 
+		ENDIF 	
+		IF EMPTY(STRTRAN(FS1R55P1,',',''))	&& Имеемтся обязательная мера наказания (без учета УК 1997 года)
+			IF !EMPTY(STRTRAN(m.lcDnObaz,',','')) 
+				lcReturn= this.log_nozn_mgr(m.lcDnObaz, FS1R59P1)
+				IF !EMPTY(m.lcReturn) AND TSN1.FS1R651P1='1'
+					pcParamSoobADD=SLV(m.lcReturn,'FL3R60P1','SLVA',2)
+					RETURN m.lcAddSoobEpzd+"По данной статье УК РК должна быть применена обязательная дополнительная мера наказания "<<m.pcParamSoobAdd>>""+'^grdFS1R51,txtFS1R59P1'
+				ENDIF 	
+			ENDIF 
+		ENDIF 
+	ENDIF 
+	IF EMPTY(SLVST.FS1R65_O) AND EMPTY(m.lcDnObaz)
+		IF FS1R573P1='03'			&& не применять дополнительный вид наказания
+			RETURN m.lcAddSoobEpzd+"В реквизите 57.3 указано, что применена ч.4 ст.55 УК РК, не применять обязательный дополнительный вид наказания, однако по данное статье отсутствует обязательное дополнительное наказание"+'^grdFS1R51,txtFS1R573P1'
+		ENDIF 
+	ENDIF 
+ENDIF 
+	
+*->* Проверяем пределы наказания 
+DO CASE 
+	CASE FS1R58P1='01'	&& лишение свободы 
+		IF !aNakaz[6,1] AND !EMPTY(aNakaz[6,11])
+			RETURN m.lcAddSoobEpzd+SetLangLog(aNakaz[6,11])+'^grdFS1R51,txtFS1R58P1'
+		ENDIF 
+		lnSrkNakaz=FS1R58P2+(FS1R58P3/100)+(FS1R58P4/10000)
+		IF aNakaz[6,1]
+			IF m.lnSrkNakaz>(aNakaz[6,8]+(aNakaz[6,9]/100)+(aNakaz[6,10]/10000))
+					lcPadeg='D'
+					m.pcParamSoobAdd=IIF(aNakaz[6,8]>0,LTRIM(STR(aNakaz[6,8]))+' '+DMYTORUS(aNakaz[6,8],3,m.lcPadeg)+' ','')+ ;
+								IIF(aNakaz[6,9]>0,LTRIM(STR(aNakaz[6,9]))+' '+DMYTORUS(aNakaz[6,9],2,m.lcPadeg)+' ','')+ ;
+								IIF(aNakaz[6,10]>0,LTRIM(STR(aNakaz[6,10]))+' '+DMYTORUS(aNakaz[6,10],1,m.lcPadeg),'')
+			RETURN m.lcAddSoobEpzd+SetLangLog(6099+IIF(aNakaz[6,12]>0,aNakaz[6,12]+60,0) )+'^grdFS1R51,txtFS1R58P2,txtFS1R58P3,txtFS1R58P4'
+			ENDIF 
+			IF m.lnSrkNakaz<(aNakaz[6,5]+(aNakaz[6,6]/100)+(aNakaz[6,7]/10000)) AND EMPTY(FS1R55P1)
+					lcPadeg='D'
+					m.pcParamSoobAdd=IIF(aNakaz[6,5]>0,LTRIM(STR(aNakaz[6,5]))+' '+DMYTORUS(aNakaz[6,5],3,m.lcPadeg)+' ','')+ ;
+								IIF(aNakaz[6,6]>0,LTRIM(STR(aNakaz[6,6]))+' '+DMYTORUS(aNakaz[6,6],2,m.lcPadeg)+' ','')+ ;
+								IIF(aNakaz[6,7]>0,LTRIM(STR(aNakaz[6,7]))+' '+DMYTORUS(aNakaz[6,7],1,m.lcPadeg),'')
+				RETURN m.lcAddSoobEpzd+SetLangLog(6098+IIF(aNakaz[6,12]>0,aNakaz[6,12]+58,0))+'^grdFS1R51,txtFS1R58P2,txtFS1R58P3,txtFS1R58P4'
+			ENDIF 	
+		ENDIF 	
+	CASE FS1R58P1='02'	&& смертная казнь 
+		IF !aNakaz[7,1] AND !EMPTY(aNakaz[7,11])
+			RETURN m.lcAddSoobEpzd+SetLangLog(aNakaz[7,11])+'^grdFS1R51,txtFS1R58P1'
+		ENDIF 
+	CASE FS1R58P1='03' && Пожизненное лишение свободы
+		IF !EMPTY(aNakaz[6,13])
+			RETURN m.lcAddSoobEpzd+SetLangLog(aNakaz[6,13])+'^grdFS1R51,txtFS1R58P1'
+		ENDIF 
+	CASE FS1R58P1='05'	&& штраф 
+		lcMRP=ICASE('xN'$SLVST.FS1R64_05x,' кратный размер взятки','xK'$SLVST.FS1R64_05x,' кратный размер дохода/ущерба',' МРП')
+		IF !aNakaz[1,1] 
+			IF !EMPTY(aNakaz[1,11])
+				RETURN m.lcAddSoobEpzd+SetLangLog(aNakaz[1,11])+'^grdFS1R51,txtFS1R58P1'
+			ENDIF 
+		ELSE 
+			IF FS1R58P6<aNakaz[1,2]
+				m.pcParamSoobAdd=TRIM(TRANSFORM(aNakaz[1,2]),1,IIF(aNakaz[1,2]%1=0 AND aNakaz[1,2]#0,'','0'))+m.lcMRP
+				RETURN m.lcAddSoobEpzd+"По данной статье УК РК, минимальный размер штрафа не должен быть меньше "<<m.pcParamSoobAdd>>""+'^grdFS1R51,txtFS1R58P6'
+			ENDIF 
+			IF FS1R58P6>aNakaz[1,3]
+				m.pcParamSoobAdd=TRIM(TRANSFORM(aNakaz[1,3]),1,IIF(aNakaz[1,3]%1=0 AND aNakaz[1,3]#0,'','0'))+m.lcMRP
+				RETURN m.lcAddSoobEpzd+"По данной статье УК РК, максимальный штраф не может превышать "<<m.pcParamSoobAdd>>""+'^grdFS1R51,txtFS1R58P6'
+			ENDIF 
+			DO CASE 
+				CASE 'xN'$SLVST.FS1R64_05x 		&&  коррупция 
+					IF FS1R58P7 <> FS1R561P1*FS1R58P6
+						RETURN m.lcAddSoobEpzd+"Штраф в тенге по коррупционным преступлениям должен быть равен размеру взятки кратному назначенному наказанию"+'^grdFS1R51,txtFS1R58P7'
+					ENDIF 
+				CASE 'xK'$SLVST.FS1R64_05x 		&& кратный ущерб 
+					IF FS1R58P7 <> FS1R561P1*FS1R58P6
+						RETURN m.lcAddSoobEpzd+"Штраф в тенге должен быть равен размеру ущерба (дохода) кратному назначенному наказанию"+'^grdFS1R51,txtFS1R58P7'
+					ENDIF 
+			ENDCASE  
+		ENDIF 
+	CASE FS1R58P1='06'	&& Исправительные работы
+		IF !aNakaz[2,1] 
+			IF  !EMPTY(aNakaz[2,11])
+				RETURN m.lcAddSoobEpzd+SetLangLog(aNakaz[2,11])+'^grdFS1R51,txtFS1R58P1'
+			ENDIF 
+		ELSE 
+			IF FS1R58P6<aNakaz[2,2]
+				m.pcParamSoobAdd=LTRIM(STR(aNakaz[2,2]))
+				RETURN m.lcAddSoobEpzd+"По данной статье УК РК, минимальный размер исправительных работ не должен быть меньше "<<m.pcParamSoobAdd>> МРП""+'^grdFS1R51,txtFS1R58P6'
+			ENDIF 
+			IF FS1R58P6>aNakaz[2,3]
+				m.pcParamSoobAdd=LTRIM(STR(aNakaz[2,3]))
+				RETURN m.lcAddSoobEpzd+"По данной статье УК РК, максимальный размер исправительных работ не может превышать "<<m.pcParamSoobAdd>> МРП""+'^grdFS1R51,txtFS1R58P6'
+			ENDIF 
+		ENDIF 	
+	CASE FS1R58P1='09'	&& Общественные работы
+		IF !aNakaz[3,1] 
+			IF !EMPTY(aNakaz[3,11])
+				RETURN m.lcAddSoobEpzd+SetLangLog(aNakaz[3,11])+'^grdFS1R51,txtFS1R58P1'
+			ENDIF 
+		ELSE 
+			IF FS1R58P5<aNakaz[3,2]
+				m.pcParamSoobAdd=LTRIM(STR(aNakaz[3,2]))
+				RETURN m.lcAddSoobEpzd+"Накзание в виде общественных работ не может быть меньше "<<m.pcParamSoobAdd>> часов""+'^grdFS1R51,txtFS1R58P5'
+			ENDIF 
+			IF FS1R58P5>aNakaz[3,3]
+				m.pcParamSoobAdd=LTRIM(STR(aNakaz[3,3]))
+				RETURN m.lcAddSoobEpzd+"По данной статье УК РК, максимальный размер общественных работ не может превышать "<<m.pcParamSoobAdd>> часов""+'^grdFS1R51,txtFS1R58P5'
+			ENDIF 
+		ENDIF 
+	CASE FS1R58P1='11'	&& Ограничение свободы
+		lnSrkNakaz=FS1R58P2+(FS1R58P3/100)+(FS1R58P4/10000)
+		IF !aNakaz[4,1] 
+			IF !EMPTY(aNakaz[4,11])
+				RETURN m.lcAddSoobEpzd+SetLangLog(aNakaz[4,11])+'^grdFS1R51,txtFS1R58P1'
+			ENDIF 
+		ELSE 			
+			IF m.lnSrkNakaz>(aNakaz[4,8]+(aNakaz[4,9]/100)+(aNakaz[4,10]/10000))
+				lcPadeg='D'
+				m.pcParamSoobAdd=IIF(aNakaz[4,8]>0,TRANSFORM(aNakaz[4,8])+' '+DMYTORUS(aNakaz[4,8],3,m.lcPadeg)+' ','')+ ;
+								 IIF(aNakaz[4,9]>0,TRANSFORM(aNakaz[4,9])+' '+DMYTORUS(aNakaz[4,9],2,m.lcPadeg)+' ','')+ ;
+								 IIF(aNakaz[4,10]>0,TRANSFORM(aNakaz[4,10])+' '+DMYTORUS(aNakaz[4,10],1,m.lcPadeg),'')
+				RETURN m.lcAddSoobEpzd+"По данной статье УК РК, срок ограничения свободы не должен быть больше "<<m.pcParamSoobAdd>>""+'^grdFS1R51,txtFS1R58P2,txtFS1R58P3,txtFS1R58P4'
+			ENDIF 
+			IF m.lnSrkNakaz<(aNakaz[4,5]+(aNakaz[4,6]/100)+(aNakaz[4,7]/10000)) 
+						lcPadeg='D'
+						m.pcParamSoobAdd=IIF(aNakaz[4,5]>0,TRANSFORM(aNakaz[4,5])+' '+DMYTORUS(aNakaz[4,5],3,m.lcPadeg)+' ','')+ ;
+											IIF(aNakaz[4,6]>0,TRANSFORM(aNakaz[4,6])+' '+DMYTORUS(aNakaz[4,6],2,m.lcPadeg)+' ','')+ ;
+											IIF(aNakaz[4,7]>0,TRANSFORM(aNakaz[4,7])+' '+DMYTORUS(aNakaz[4,7],1,m.lcPadeg),'')
+				RETURN m.lcAddSoobEpzd+"По данной статье УК РК, минимальный срок ограничения свободы не должен быть меньше "<<m.pcParamSoobAdd>>""+'^grdFS1R51,txtFS1R58P2,txtFS1R58P3,txtFS1R58P4'
+			ENDIF 
+		ENDIF 
+	CASE FS1R58P1='12'	&& Арест
+		IF !aNakaz[5,1] 
+			IF !EMPTY(aNakaz[5,11])
+				RETURN m.lcAddSoobEpzd+SetLangLog(aNakaz[5,11])+'^grdFS1R51,txtFS1R58P1'
+			ENDIF 
+		ELSE 
+			IF FS1R58P4<aNakaz[5,2]
+				m.pcParamSoobAdd=LTRIM(STR(aNakaz[5,2]))
+				RETURN m.lcAddSoobEpzd+"По данной статье УК РК, минимальный срок ареста не должен быть меньше <<m.pcParamSoobAdd>> суток"+'^grdFS1R51,txtFS1R58P6'
+			ENDIF 
+			IF FS1R58P4>aNakaz[5,3]
+				m.pcParamSoobAdd=LTRIM(STR(aNakaz[5,3]))
+				RETURN m.lcAddSoobEpzd+"По данной статье УК РК, максимальный срок ареста не должен быть больше <<m.pcParamSoobAdd>> суток"+'^grdFS1R51,txtFS1R58P6'
+			ENDIF 
+		ENDIF 
+ENDCASE 	
+IF !FS1R57P1$'7067,7068,7010,7020,0000' 
+	IF m.lnFS1R14P1<14
+		RETURN m.lcAddSoobEpzd+"Лицо не достигшее на момент совершения возраста 14 лет не подлежит уголовной ответсвенности."+'^grdFS1R51,txtFS1R57P1'
+	ENDIF 
+	IF m.lnFS1R14P1<16
+		IF !LEFT(FS1R54P1,5)$'09900,10600,12000,12100,12500,17300,17400,17700,17800,18400,19200,25500,25600,25800,26100,26900,27300,29100,29400,29800,35000' AND ;
+			!FS1R54P1$'1070002,1880002,1880003,1880004,1910002,1910003,1910004,1940002,1940003,1940004,2000002,2000003,2000004,2020002,2020003,2570001,2570002,2930002,2930003,3140002'
+			RETURN m.lcAddSoobEpzd+"Лицо не достигшее 16 летнего возраста не подлежит уголовной ответственности, за исключением совершения преступлений предусмотренных ст.15 ч.2 УК РК"+'^grdFS1R51,txtFS1R57P1'
+		ENDIF 
+	ENDIF 
+ENDIF 
+
+IF FS1R57P1$'7075,7076,7077,7078,7079,7093,7030,7040,7090,7100,7110,7121,7022,7023,7124,7125,7126,7127,7128,7129,7131,7132,7133,7134,7135,7136,4137,7138,7139,7140,7094'
+	IF !LEFT(FS1R54P1,5)$'17000,17100,17300,17700,17800,18400,25500,25600,25700,25800,25900,26000,26100,26900,27000'
+		IF FS1R56P1='1' AND !ALLTRIM(SLVST.Hard)$'3,4'
+			RETURN m.lcAddSoobEpzd+"Уголовная ответственность за "приготовление" к преступлению наступает только за приготовление к тяжкому или особо тяжкому преступлению, а также за приготовление к террористическому преступлению"+'^grdFS1R51,txtFS1R56P1,txtFS1R57P1'
+		ENDIF 
+		IF FS1R56P1='2' AND !ALLTRIM(SLVST.Hard)$'2,3,4'
+			RETURN m.lcAddSoobEpzd+"Уголовная ответственность за "покушение" на преступление наступает только за покушение  на преступление стредней тяжести, тяжкое или особо тяжкое преступление, а также за покушение на террористическое преступление"+'^grdFS1R51,txtFS1R56P1,txtFS1R57P1'
+		ENDIF 
+	ENDIF 
+ENDIF 
+
+*->* смягчающие вину обстоятельства
+IF '02'$FS1R571P1 AND m.lnFS1R14P1>17
+		m.pcParamSoob=LTRIM(STR(m.lnFS1R14P1))
+		RETURN m.lcAddSoobEpzd+"Не может быть учтено как смягчающее вину обстоятельство несовершеннолетие виновного, т.к. подсудимый совершил преступление в возрасте <<m.pcParamSoob>> лет."+'^grdFS1R51,txtFS1R571P1'
+ENDIF 
+IF '03'$FS1R571P1 AND TSN1.FS1R15P1='1'
+		RETURN m.lcAddSoobEpzd+"Мужчина не может быть беременным, поэтому "беременность" не может быть учтено, как смягчающее вину обстоятельство"+'^grdFS1R51,txtFS1R571P1'
+ENDIF 	
+IF '03'$FS1R571P1 AND !'83'$TSN1.FS1R231P1
+		RETURN m.lcAddSoobEpzd+"Не может быть учтено, как смягчающее вину обстоятельство "беременность" подсудимой, т.к. в реквизите "Дополнительные отметки к роду занятий" не отражен факт "беременности""+'^grdFS1R51,txtFS1R571P1'
+ENDIF 
+IF '04'$FS1R571P1 AND !TSN1.FS1R21P1$'01,02,03,04'
+		RETURN m.lcAddSoobEpzd+"Не может быть учтено, как смягчающее вину обстоятельство "наличие малолетних детей", т.к. в реквизите "Имеет на иждивении" сведения о малолетних детях отсутствуют"+'^grdFS1R51,txtFS1R571P1'
+ENDIF 
+IF '03'$FS1R572P1 && 16.11.2017
+	IF !FS1R563P1$'1,2,3,4'
+		RETURN m.lcAddSoobEpzd+"Не может быть учтено, как отягчающее вину обстоятельство совершение преступления в группе лиц, т.к. реквизит "В группе" не содержит вида группы"+'^grdFS1R51,txtFS1R572P1'
+	ENDIF 	
+	IF FS1R564P1<>'4' 
+		RETURN m.lcAddSoobEpzd+"Не может быть учтено, как отягчающее вину обстоятельство совершение преступления в группе лиц, т.к. совершение деяния в составе группы предусмотрено в качестве признака и не может учитываться как отягчающее вину обстоятельство"+'^grdFS1R51,txtFS1R572P1'
+	ENDIF 
+ENDIF 
+IF '12'$FS1R572P1 AND FS1R565P1<>'1'	&& 16.11.2017
+		RETURN m.lcAddSoobEpzd+"Не может быть учтено, как отягчающее вину обстоятельство совершение преступления в состоянии алкогольного, наркотического, или токсикоманического опьянения, т.к. в реквизите "В состоянии", даный вид состояния отсутствует"+'^grdFS1R51,txtFS1R572P1'
+ENDIF 
+
+IF FS1R57P1$'7075,7077,7079' 
+	********** ПЕРЕПИСАНО ЧТО БЫ НЕНАДОЕДАЛО
+	******* Предупреждение по смягчающему и отягчающему 
+	IF this.lWarning(1,8) AND !'02'$FS1R571P1 AND m.lnFS1R14P1<18
+		m.pcParamSoob=LTRIM(STR(m.lnFS1R14P1))
+		RETURN lcAddSoobEpzd+"Возраст подсудимого <<m.pcParamSoob>> лет, возможно следует признать в качестве смягчающих вину обстоятельств "несовершеннолетие виновного""+'^lWarning(1,8),grdFS1R51,txtFS1R571P1'
+	ENDIF 
+	IF this.lWarning(1,9) AND !'03'$FS1R571P1 AND '83'$TSN1.FS1R231P1
+		RETURN lcAddSoobEpzd+"Подсудимая находится в состоянии беременности, возможно следует признать в качестве смягчающих вину обстоятельств "беременность подсудимой""+'^lWarning(1,9),grdFS1R51,txtFS1R571P1'
+	ENDIF 
+	IF this.lWarning(1,10) AND !'04'$FS1R571P1 AND TSN1.FS1R21P1$'01,02,03,04'
+		RETURN lcAddSoobEpzd+"У подсудимого на иждивении малолетние дети, возможно следует признать в качестве смягчающих вину обстоятельств "наличие малолетних детей у виновного""+'^lWarning(1,10),grdFS1R51,txtFS1R571P1'
+	ENDIF 
+	IF this.lWarning(1,18) AND '04'$SLVST.FS1R65_N AND !'04'$FS1R59P1 AND TSN1.FS1R17P1$'2,3,4' AND FS1R51P2>{^2016.05.02}	&& 16.11.2017
+		RETURN lcAddSoobEpzd+"Подсудимый не имеет гражданства РК, совершил преступление за которое, в качестве дополнительной меры наказания преусмотрена возможность назначения в виде "выдворения за пределы РК"<<CHR(13)>>Возможно следует назначить эту доп.меру наказания?"+'^lWarning(1,18),grdFS1R51,txtFS1R59P1'
+	ENDIF 
+	IF this.lWarning(1,19) AND m.lnFS1R14P1>=18 AND '05'$SLVST.FS1R65_N AND !'05'$FS1R59P1 AND TSN1.FS1R17P1='1' 	&& 16.11.2017
+		RETURN lcAddSoobEpzd+"Подсудимому за данное преступление в качестве дополнительной меры наказания может быть назначено наказание в виде лишения гражданства"+'^lWarning(1,19),grdFS1R51,txtFS1R59P1'
+	ENDIF 
+
+	IF this.lWarning(1,11) AND !'03'$FS1R572P1 AND FS1R563P1$'1,2,3,4' AND FS1R564P1='4'	&& 16.11.2017
+		RETURN lcAddSoobEpzd+"Подсудимый совершил преступление в группе лиц, возможно следует признать в качестве отягчающиего вину обстоятельства "совершение уголовного преступления в группе лиц""+'^lWarning(1,11),grdFS1R51,txtFS1R572P1'
+	ENDIF 
+
+	IF this.lWarning(1,12) AND !'12'$FS1R572P1 AND FS1R565P1='1'	&& 16.11.2017
+		RETURN lcAddSoobEpzd+"Подсудимый совершил преступление в состоянии опьянения, возможно следует признать в качестве отягчающиего вину обстоятельства "совершение уголовного правонарушения в состоянии алкогольного, наркотического или токсикоманического опьянения""+'^lWarning(1,12),grdFS1R51,txtFS1R572P1'
+	ENDIF 
+ENDIF 
