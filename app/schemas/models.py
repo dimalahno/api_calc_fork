@@ -89,6 +89,7 @@ class CalculateResponse(BaseModel):
     """Полный ответ API: язык, массив `aNakaz` и структурированный блок."""
 
     lang: str = Field(description="Язык ответа")
+    aNakaz: List[List[Any]] = Field(description="Строгий массив 15x13 с результатами и внутренними метками")
     structured: StructuredResponse = Field(description="Читаемая структурированная форма результата")
 
 
