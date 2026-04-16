@@ -90,19 +90,6 @@ def _codes_list(value: str) -> list[str]:
     return [item.strip() for item in (value or "").split(",") if item.strip()]
 
 
-def _row_field_names(code: str) -> tuple[str, str] | None:
-    mapping = {
-        "05": ("fs1r64_05n", "fs1r64_05x"),
-        "06": ("fs1r64_06n", "fs1r64_06x"),
-        "09": ("fs1r64_09n", "fs1r64_09x"),
-        "11": ("fs1r64_11n", "fs1r64_11x"),
-        "12": ("fs1r64_12n", "fs1r64_12x"),
-        "01": ("fs1r64_01n", "fs1r64_01x"),
-        "02": ("", ""),
-    }
-    return mapping.get(code)
-
-
 def _scripts_used() -> list[str]:
     folder = Path(__file__).resolve().parents[3] / "fox_pro_prg"
     return [name for name in FOXPRO_SCRIPT_FILES if (folder / name).exists()]
@@ -120,74 +107,201 @@ def _select_strictest(records: list[ArticleRecord]) -> ArticleRecord:
     return max(records, key=score)
 
 
-def _apply_main_punishments(a_nakaz: List[List[Any]], article: ArticleRecord) -> str:
+def _format_range(min_v: float, max_v: float, with_year_suffix: bool = False) -> str:
+    min_exists = min_v > 0
+    max_exists = max_v > 0
+    min_txt = f"{min_v:g}"
+    max_txt = f"{max_v:g}"
+    suffix = " лет" if with_year_suffix else ""
+
+    if min_exists and max_exists:
+        return f"от {min_txt} до {max_txt}{suffix}"
+    if max_exists:
+        return f"до {max_txt}{suffix}"
+    if min_exists:
+        return f"от {min_txt}{suffix}"
+    return "предусмотрено"
+
+
+def _extract_ymd(years_value: float) -> tuple[int, int, int]:
+    if years_value <= 0:
+        return 0, 0, 0
+    return int(years_value), 0, 0
+
+
+def _extract_sanction(article: ArticleRecord) -> Dict[str, Any]:
+    main_codes = _codes_list(article.fs1r64)
+    nn_codes = _codes_list(article.fs1r64_nn)
+    all_main_codes = list(dict.fromkeys(main_codes + nn_codes))
+
+    main_ranges = {
+        "05": {"min": _parse_number(article.fs1r64_05n), "max": _parse_number(article.fs1r64_05x)},
+        "06": {"min": _parse_number(article.fs1r64_06n), "max": _parse_number(article.fs1r64_06x)},
+        "09": {"min": _parse_number(article.fs1r64_09n), "max": _parse_number(article.fs1r64_09x)},
+        "11": {"min": _parse_number(article.fs1r64_11n), "max": _parse_number(article.fs1r64_11x)},
+        "12": {"min": _parse_number(article.fs1r64_12n), "max": _parse_number(article.fs1r64_12x)},
+        "01": {"min": _parse_number(article.fs1r64_01n), "max": _parse_number(article.fs1r64_01x)},
+    }
+
+    additional_optional_codes = _codes_list(article.fs1r65_o)
+    additional_required_codes = _codes_list(article.fs1r65_n)
+
+    return {
+        "article_code": article.article_code,
+        "hard": article.hard,
+        "koef_hard": article.koef_hard,
+        "prest": article.prest,
+        "main_codes": all_main_codes,
+        "main_ranges": main_ranges,
+        "additional_required_codes": additional_required_codes,
+        "additional_optional_codes": additional_optional_codes,
+        "additional_ranges": {
+            "02": {"min": _parse_number(article.fs1r65_02n), "max": _parse_number(article.fs1r65_02x)}
+        },
+    }
+
+
+def _build_calculated_sanction(
+    sanction: Dict[str, Any],
+    payload: Dict[str, Any],
+    episode: Dict[str, Any],
+) -> Dict[str, Any]:
+    # payload и episode намеренно приняты, чтобы позже наращивать правила (по мотивам count_srok).
+    _ = payload
+    _ = episode
+
+    main_codes = set(sanction.get("main_codes", []))
+    main_ranges = sanction.get("main_ranges", {})
+    calculated_main: Dict[str, Dict[str, Any]] = {}
+    for code in ("05", "06", "09", "11", "12", "01", "02", "03"):
+        range_info = main_ranges.get(code, {})
+        min_v = float(range_info.get("min", 0) or 0)
+        max_v = float(range_info.get("max", 0) or 0)
+        is_applicable = code in main_codes
+        item = {
+            "is_applicable": is_applicable,
+            "min_value": min_v,
+            "max_value": max_v,
+            "formatted_text": _format_range(min_v, max_v),
+        }
+        if code in {"11", "01"}:
+            min_y, min_m, min_d = _extract_ymd(min_v)
+            max_y, max_m, max_d = _extract_ymd(max_v)
+            item.update(
+                {
+                    "min_years": min_y,
+                    "min_months": min_m,
+                    "min_days": min_d,
+                    "max_years": max_y,
+                    "max_months": max_m,
+                    "max_days": max_d,
+                }
+            )
+        calculated_main[code] = item
+
+    optional_codes = set(sanction.get("additional_optional_codes", []))
+    required_codes = set(sanction.get("additional_required_codes", []))
+    additional_ranges = sanction.get("additional_ranges", {})
+
+    calculated_additional: Dict[str, Dict[str, Any]] = {}
+    for code in ("01", "04", "22", "02", "05"):
+        is_applicable = code in optional_codes or code in required_codes
+        is_mandatory = code in required_codes
+        min_v = max_v = 0.0
+        if code == "02":
+            min_v = float(additional_ranges.get("02", {}).get("min", 0) or 0)
+            max_v = float(additional_ranges.get("02", {}).get("max", 0) or 0)
+            text = _format_range(min_v, max_v, with_year_suffix=True)
+        else:
+            text = "предусмотрено"
+
+        calculated_additional[code] = {
+            "is_applicable": is_applicable,
+            "is_mandatory": is_mandatory,
+            "formatted_text": text if is_applicable else "",
+            "min_years": int(min_v) if code == "02" else 0,
+            "max_years": int(max_v) if code == "02" else 0,
+        }
+
+    return {
+        "article_code": sanction.get("article_code", ""),
+        "hard": sanction.get("hard", ""),
+        "koef_hard": sanction.get("koef_hard", ""),
+        "prest": sanction.get("prest", ""),
+        "main": calculated_main,
+        "additional": calculated_additional,
+    }
+
+
+def _apply_main_punishments(a_nakaz: List[List[Any]], calculated: Dict[str, Any]) -> str:
     selected_code = ""
     selected_weight = -1
+    main = calculated.get("main", {})
 
-    for code in _codes_list(article.fs1r64):
+    for code in ("05", "06", "09", "11", "12", "01", "02"):
         row = PUNISHMENT_ROW_BY_CODE.get(code)
         if row is None:
             continue
+        item = main.get(code, {})
+        if not item.get("is_applicable", False):
+            continue
 
         a_nakaz[row][0] = True
-        a_nakaz[row][3] = setlang(5265, "ru")
-
-        field_names = _row_field_names(code)
-        if field_names and field_names[0]:
-            min_v = _parse_number(getattr(article, field_names[0], ""))
-            max_v = _parse_number(getattr(article, field_names[1], ""))
-            a_nakaz[row][1] = min_v
-            a_nakaz[row][2] = max_v
-            a_nakaz[row][3] = f"{min_v:g} - {max_v:g}" if max_v else f"{min_v:g}"
-            if row in (3, 5):
-                a_nakaz[row][4] = int(min_v)
-                a_nakaz[row][7] = int(max_v)
-        else:
-            a_nakaz[row][3] = "предусмотрено"
+        a_nakaz[row][1] = item.get("min_value", 0)
+        a_nakaz[row][2] = item.get("max_value", 0)
+        a_nakaz[row][3] = item.get("formatted_text", "предусмотрено")
+        if row in (3, 5):
+            a_nakaz[row][4] = int(item.get("min_years", 0) or 0)
+            a_nakaz[row][5] = int(item.get("min_months", 0) or 0)
+            a_nakaz[row][6] = int(item.get("min_days", 0) or 0)
+            a_nakaz[row][7] = int(item.get("max_years", 0) or 0)
+            a_nakaz[row][8] = int(item.get("max_months", 0) or 0)
+            a_nakaz[row][9] = int(item.get("max_days", 0) or 0)
 
         weight = PUNISHMENT_WEIGHT.get(code, 0)
         if weight > selected_weight:
             selected_weight = weight
             selected_code = code
 
+    if selected_code == "01" and main.get("03", {}).get("is_applicable"):
+        a_nakaz[PUNISHMENT_ROW_BY_CODE["01"]][3] = "предусмотрено (возможно пожизненное)"
     return selected_code
 
 
-def _apply_additional_punishments(a_nakaz: List[List[Any]], article: ArticleRecord) -> None:
-    opt_codes = set(_codes_list(article.fs1r65_o))
-    mandatory_codes = set(_codes_list(article.fs1r65_n))
+def _apply_additional_punishments(a_nakaz: List[List[Any]], calculated: Dict[str, Any]) -> None:
+    additional = calculated.get("additional", {})
 
-    # Конфискация
-    if "01" in opt_codes or "01" in mandatory_codes:
+    confiscation = additional.get("01", {})
+    if confiscation.get("is_applicable"):
         a_nakaz[7][0] = True
-        a_nakaz[7][1] = "01" in mandatory_codes
-        a_nakaz[7][3] = "предусмотрено"
+        a_nakaz[7][1] = bool(confiscation.get("is_mandatory"))
+        a_nakaz[7][3] = confiscation.get("formatted_text", "предусмотрено")
 
-    # Выдворение
-    if "04" in opt_codes or "04" in mandatory_codes:
+    deportation = additional.get("04", {})
+    if deportation.get("is_applicable"):
         a_nakaz[8][0] = True
-        a_nakaz[8][1] = "04" in mandatory_codes
-        a_nakaz[8][3] = "предусмотрено"
+        a_nakaz[8][1] = bool(deportation.get("is_mandatory"))
+        a_nakaz[8][3] = deportation.get("formatted_text", "предусмотрено")
 
-    # Пожизненный запрет
-    if "02" in opt_codes or "02" in mandatory_codes:
+    lifetime_prohibition = additional.get("22", {})
+    if lifetime_prohibition.get("is_applicable"):
         a_nakaz[9][0] = True
-        a_nakaz[9][1] = "02" in mandatory_codes
-        a_nakaz[9][3] = "предусмотрено"
+        a_nakaz[9][1] = bool(lifetime_prohibition.get("is_mandatory"))
+        a_nakaz[9][3] = lifetime_prohibition.get("formatted_text", "предусмотрено")
 
-    # Срочный запрет
-    if "22" in opt_codes or "22" in mandatory_codes:
+    prohibition_term = additional.get("02", {})
+    if prohibition_term.get("is_applicable"):
         a_nakaz[10][0] = True
-        a_nakaz[10][1] = "22" in mandatory_codes
-        a_nakaz[10][4] = int(_parse_number(article.fs1r65_02n))
-        a_nakaz[10][5] = int(_parse_number(article.fs1r65_02x))
-        a_nakaz[10][3] = f"{a_nakaz[10][4]} - {a_nakaz[10][5]}"
+        a_nakaz[10][1] = bool(prohibition_term.get("is_mandatory"))
+        a_nakaz[10][4] = int(prohibition_term.get("min_years", 0) or 0)
+        a_nakaz[10][5] = int(prohibition_term.get("max_years", 0) or 0)
+        a_nakaz[10][3] = prohibition_term.get("formatted_text", "предусмотрено")
 
-    # Лишение гражданства
-    if "03" in opt_codes or "03" in mandatory_codes:
+    deprivation = additional.get("05", {})
+    if deprivation.get("is_applicable"):
         a_nakaz[11][0] = True
-        a_nakaz[11][1] = "03" in mandatory_codes
-        a_nakaz[11][3] = "предусмотрено"
+        a_nakaz[11][1] = bool(deprivation.get("is_mandatory"))
+        a_nakaz[11][3] = deprivation.get("formatted_text", "предусмотрено")
 
 
 def calculate_from_json(payload: Dict[str, Any]) -> Tuple[List[List[Any]], Dict[str, Any]]:
@@ -231,8 +345,20 @@ def calculate_from_json(payload: Dict[str, Any]) -> Tuple[List[List[Any]], Dict[
         return a_nakaz, structured
 
     selected_article = _select_strictest(candidates)
-    selected_punishment = _apply_main_punishments(a_nakaz, selected_article)
-    _apply_additional_punishments(a_nakaz, selected_article)
+    selected_episode = next(
+        (
+            ep
+            for ep in episodes
+            if isinstance(ep, dict)
+            and _resolve_article_code(ep.get("article_code"), ep.get("article"), ep.get("part"), ep.get("paragraph"))
+            == selected_article.article_code
+        ),
+        crime if isinstance(crime, dict) else {},
+    )
+    sanction = _extract_sanction(selected_article)
+    calculated = _build_calculated_sanction(sanction, payload, selected_episode)
+    selected_punishment = _apply_main_punishments(a_nakaz, calculated)
+    _apply_additional_punishments(a_nakaz, calculated)
 
     structured = _build_structured(a_nakaz)
     structured["meta"] = {
@@ -241,6 +367,7 @@ def calculate_from_json(payload: Dict[str, Any]) -> Tuple[List[List[Any]], Dict[
         "selected_article_code": selected_article.article_code,
         "selected_article_hard": selected_article.hard,
         "selected_main_punishment": selected_punishment,
+        "sanction_source": "count_srok_simplified",
         "foxpro_scripts": _scripts_used(),
     }
     return a_nakaz, structured
