@@ -1,72 +1,18 @@
-"""Оркестрация расчёта: подготовка входа, вызов движка, сборка ответа."""
+"""Оркестрация расчёта: адаптация payload -> контекст -> упрощённый расчёт -> response."""
 
 from __future__ import annotations
 
 from datetime import date
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
-# from app.domain.engines.foxpro_engine import FoxProInput, calculate_count_srk
-from app.domain.engines.foxpro_engine_new import FoxProInput, calculate_count_srk
-from app.core.i18n import normalize_lang, setlang
+from app.domain.models.calculation_context import CalculationContext, EpisodeContext
+from app.domain.services.sanction_resolver import SanctionResolver
+from app.domain.services.simple_calculator import ADD_CODE_TO_KEY, MAIN_CODE_TO_KEY, SimplePunishmentCalculator
 from app.infrastructure.loaders.reference_loader import get_reference_service
-
-
-def _parse_gender(value: str | None) -> str:
-    """Нормализует пол в коды FoxPro (`1` — муж., `2` — жен.)."""
-    if not value:
-        return "1"
-    v = str(value).strip().lower()
-    if v in ("2", "female", "f", "жен", "женщина"):
-        return "2"
-    return "1"
-
-
-def _parse_stage(value: str | None) -> str:
-    """Нормализует стадию преступления в коды `1/2/3`."""
-    if not value:
-        return "3"
-    v = str(value).strip().lower()
-    if v in ("1", "preparation", "prep"):
-        return "1"
-    if v in ("2", "attempt"):
-        return "2"
-    return "3"
-
-
-def _build_code(article: str, part: str | None, paragraph: str | None) -> str:
-    """Собирает 7-значный код статьи в формате `AAASSPP`."""
-    art = str(article).strip()
-    if not art:
-        return ""
-    import re
-
-    m = re.match(r"^(\d+)(?:-(\d+))?$", art)
-    if m:
-        art_num = m.group(1)
-        sub_art = m.group(2) or "0"
-    else:
-        art_num = art
-        sub_art = "0"
-
-    pt = str(part).strip() if part else "01"
-    return f"{art_num.zfill(3)}{sub_art.zfill(2)}{pt.zfill(2)}"
-
-
-def _resolve_article_code(article_code: str | None, article: str | None, part: str | None, paragraph: str | None) -> str:
-    """Выбирает итоговый код статьи: готовый код или сборка из полей article/part."""
-    if article_code:
-        code = str(article_code).strip()
-        if code.isdigit():
-            if len(code) in (5, 7):
-                return code
-            return code.zfill(7)
-    if article and part:
-        return _build_code(article, part, paragraph)
-    return ""
+from app.infrastructure.repositories.reference_repository import ReferenceRepository
 
 
 def _parse_date(value: Any) -> date | None:
-    """Преобразует дату из ISO-строки/`date` в объект `date`."""
     if isinstance(value, date):
         return value
     if isinstance(value, str) and value:
@@ -74,140 +20,104 @@ def _parse_date(value: Any) -> date | None:
     return None
 
 
-def calculate_from_json(payload: Dict[str, Any]) -> Tuple[List[List[Any]], Dict[str, Any]]:
-    """Выполняет полный pipeline расчёта наказаний из API payload."""
-    lang = normalize_lang(payload.get("lang", "ru"))
-    person = payload.get("person", {}) or {}
-    crime = payload.get("crime", {}) or {}
+def calculate_from_json(payload: dict[str, Any]) -> tuple[list[list[Any]], dict[str, Any]]:
+    context = _to_context(payload)
 
-    crime_date = _parse_date(crime.get("crime_date")) or date.today()
-    calc_date = _parse_date(payload.get("calc_date")) or date.today()
+    repository = ReferenceRepository(get_reference_service())
+    resolver = SanctionResolver(repository)
+    calculator = SimplePunishmentCalculator(resolver)
+    result = calculator.calculate(context)
 
-    article_code = _resolve_article_code(
-        crime.get("article_code"),
-        crime.get("article"),
-        crime.get("part"),
-        crime.get("paragraph"),
-    )
-
-    article_parts = (crime.get("article_parts") or "").strip()
-    if not article_parts and crime.get("paragraph"):
-        article_parts = str(crime.get("paragraph")).zfill(2)
-
-    # mitigating = crime.get("mitigating") or crime.get("fs1r571p1")
-    # if mitigating is None and crime.get("has_mitigating"):
-    #     mitigating = "1"
-
-    # aggravating = crime.get("aggravating") or crime.get("fs1r572p1")
-    # if aggravating is None and crime.get("has_aggravating"):
-    #     aggravating = "1"
-
-    mitigating = crime.get("mitigating")
-    if mitigating:
-        mitigating = "1"
-
-    aggravating = crime.get("aggravating")
-    if aggravating:
-        aggravating = "1"
-
-    # special_condition = crime.get("special_condition") or crime.get("fs1r573p1") or ""
-    special_condition = crime.get("special_condition") or ""
-
-    inp = FoxProInput(
-        crime_date=crime_date,
-        article_code=article_code,
-        article_parts=article_parts,
-        crime_stage=_parse_stage(crime.get("crime_stage")),
-        mitigating=str(mitigating or ""),
-        aggravating=str(aggravating or ""),
-        special_condition=str(special_condition or ""),
-        birth_date=_parse_date(person.get("birth_date")),
-        gender=_parse_gender(person.get("gender")),
-        citizenship=str(person.get("citizenship") or ""),
-        dependents=str(person.get("dependents") or ""),
-        additional_marks=str(person.get("additional_marks") or ""),
-        fs1r041p1=str(person.get("fs1r041p1") or ""),
-        fs1r042p1=str(person.get("fs1r042p1") or ""),
-        fs1r23p1=str(person.get("fs1r23p1") or ""),
-        fs1r26p1=str(person.get("fs1r26p1") or ""),
-        server_date=calc_date,
-    )
-
-    ref = get_reference_service()
-    article = ref.get_by_code(inp.article_code, inp.crime_date) if inp.article_code else None
-    if not article:
-        a_nakaz = [[False, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 0, 0] for _ in range(15)]
-        for idx in range(7):
-            a_nakaz[idx][3] = setlang(5265, lang)
-        structured = {
-            "punishments": {},
-            "additional_punishments": {},
-            "meta": {
-                "reference_found": False,
-                "reason": "article_not_found",
-            },
-        }
-        return a_nakaz, structured
-
-    a_nakaz = calculate_count_srk(inp, article, lang=lang)
-    structured = _build_structured(a_nakaz)
-    structured["meta"] = {
-        "reference_found": True,
-        "is_misdemeanor": bool(a_nakaz[14][0]),
-        "no_criminal_liability": bool(a_nakaz[14][1]),
-        "reason": a_nakaz[14][3] if a_nakaz[14][1] else "",
-    }
+    structured = _build_structured(result)
+    a_nakaz = [[False, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 0, 0] for _ in range(15)]
     return a_nakaz, structured
 
 
-def _build_structured(a_nakaz: List[List[Any]]) -> Dict[str, Any]:
-    """Преобразует массив `aNakaz` в читаемую структуру `structured`."""
-    def item(row: int) -> Dict[str, Any]:
-        r = a_nakaz[row]
-        data = {
-            "is_applicable": bool(r[0]),
-            "min_value": r[1],
-            "max_value": r[2],
-            "formatted_text": r[3],
-        }
-        if row in (3, 5):
-            data.update(
-                {
-                    "min_years": r[4],
-                    "min_months": r[5],
-                    "min_days": r[6],
-                    "max_years": r[7],
-                    "max_months": r[8],
-                    "max_days": r[9],
-                }
+def _to_context(payload: dict[str, Any]) -> CalculationContext:
+    person = payload.get("person", {}) or {}
+    crime = payload.get("crime", {}) or {}
+    calc_date = _parse_date(payload.get("calc_date")) or date.today()
+
+    episodes_payload = payload.get("episodes") or payload.get("crimes") or [crime]
+    episodes: list[EpisodeContext] = []
+    for item in episodes_payload:
+        if not isinstance(item, dict):
+            continue
+        episodes.append(
+            EpisodeContext(
+                article=_resolve_article(item),
+                point=(item.get("paragraph") or item.get("point") or None),
+                event_date=_parse_date(item.get("crime_date")) or calc_date,
+                raw=item,
             )
-        return data
+        )
 
-    def add_item(row: int) -> Dict[str, Any]:
-        r = a_nakaz[row]
-        data = {
-            "is_applicable": bool(r[0]),
-            "is_mandatory": bool(r[1]),
-            "formatted_text": r[3],
-        }
-        if row == 10:
-            data.update({"min_years": r[4], "max_years": r[5]})
-        return data
+    return CalculationContext(person=person, episodes=episodes, calc_date=calc_date, meta={"lang": payload.get("lang", "ru")})
 
+
+def _resolve_article(item: dict[str, Any]) -> str:
+    article = str(item.get("stat") or item.get("article") or "").strip()
+    part = str(item.get("part") or "").strip()
+    if article and part and "ч." not in article:
+        return f"ст.{article} ч.{part}"
+    return article
+
+
+def _build_structured(result: dict[str, Any]) -> dict[str, Any]:
     punishments = {
-        "fine": item(0),
-        "corrective_work": item(1),
-        "mandatory_work": item(2),
-        "restriction_of_freedom": item(3),
-        "arrest": item(4),
-        "imprisonment": item(5),
-        "death_penalty": item(6),
+        "fine": _empty_main(),
+        "corrective_work": _empty_main(),
+        "mandatory_work": _empty_main(),
+        "restriction_of_freedom": _empty_main(),
+        "arrest": _empty_main(),
+        "imprisonment": _empty_main(),
+        "death_penalty": _empty_main(),
     }
     additional = {
-        "confiscation": add_item(7),
-        "deportation": add_item(8),
-        "lifetime_prohibition": add_item(9),
-        "prohibition_term": add_item(10),
-        "deprivation_of_citizenship": add_item(11),
+        "confiscation": _empty_additional(),
+        "deportation": _empty_additional(),
+        "lifetime_prohibition": _empty_additional(),
+        "prohibition_term": _empty_additional(),
+        "deprivation_of_citizenship": _empty_additional(),
     }
-    return {"punishments": punishments, "additional_punishments": additional}
+
+    top_rule = result.get("top_rule")
+    if top_rule:
+        for code in top_rule.allowed_main_punishments:
+            key = MAIN_CODE_TO_KEY.get(code)
+            if not key:
+                continue
+            value_range = top_rule.main_punishment_ranges.get(code, {"min": 0, "max": 0})
+            punishments[key] = {
+                "is_applicable": True,
+                "min_value": value_range.get("min", 0),
+                "max_value": value_range.get("max", 0),
+                "formatted_text": f"{code}: {value_range.get('min', 0)}..{value_range.get('max', 0)}",
+            }
+        for code in result.get("required_additional", []):
+            key = ADD_CODE_TO_KEY.get(code)
+            if key:
+                additional[key].update({"is_applicable": True, "is_mandatory": True, "formatted_text": code})
+        for code in result.get("optional_additional", []):
+            key = ADD_CODE_TO_KEY.get(code)
+            if key and not additional[key]["is_mandatory"]:
+                additional[key].update({"is_applicable": True, "is_mandatory": False, "formatted_text": code})
+
+    return {
+        "punishments": punishments,
+        "additional_punishments": additional,
+        "meta": {
+            "reference_found": bool(top_rule),
+            "top_article": top_rule.article if top_rule else "",
+            "top_punishment": result.get("top_punishment") or "",
+            "episodes": result.get("episodes", []),
+        },
+    }
+
+
+def _empty_main() -> dict[str, Any]:
+    return {"is_applicable": False, "min_value": 0, "max_value": 0, "formatted_text": ""}
+
+
+def _empty_additional() -> dict[str, Any]:
+    return {"is_applicable": False, "is_mandatory": False, "formatted_text": ""}
