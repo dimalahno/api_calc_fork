@@ -1,0 +1,727 @@
+LPARAMETERS tdFS1R51P2, tcFS1R54P1, tcFS1R54P2, tcFS1R56P1, tcFS1R571P1, tcFS1R572P1, tcFS1R573P1, tcFS1R566P1, tcFS1R567P1
+LOCAL lnFS1R64_01n, lnFS1R64_01x, lnFS1R64_05n, lnFS1R64_05x, lnFS1R64_06n, lnFS1R64_06x, lnFS1R64_09n, lnFS1R64_09x, lnFS1R64_11n, lnFS1R64_11x, ;
+		lcFS1R64_02x, lcPadeg, lnMnoj, lnDel, lnMnojUdp, lnDelUdp, lnMnoj56, lnDel56, lcMaxSrok, lcMinSrok, ldDateStart, lnYear, lnMes, lnDay, lnFS1R14P1, ;
+		ldFS1R13P1, lcFS1R17P1, lcFS1R15P1, lcFS1R651P1, lcFS1R70P1, lcFS1R21P1, lcFS1R231P1, lcFS1R041P1, lcFS1R042P1, lcFS1R23P1, lcFS1R26P1
+
+EXTERNAL ARRAY aNakaz
+STORE .F. TO aNakaz
+STORE SetLang(5265) TO aNakaz[1,4],aNakaz[2,4],aNakaz[3,4],aNakaz[4,4],aNakaz[5,4],aNakaz[6,4],aNakaz[7,4]
+STORE 1 TO lnMnoj, lnDel, lnMnojUdp, lnDelUdp, lnMnoj56, lnDel56
+
+DO CASE 
+	CASE this.typeform='TSN3'
+		ldFS1R13P1=TSN3.FS3R031P4
+		lcFS1R17P1=TSN3.FS3R06P1
+		lcFS1R15P1=TSN3.FS3R05P1
+		lcFS1R651P1=TSN3.FS3R37P1
+		lcFS1R70P1=TSN3.FS3R70P1
+		lcFS1R21P1=TSN3.FS3R07P1
+		lcFS1R231P1=TSN3.FS3R07P1
+		lcFS1R041P1=ICASE(TSN3.FS3R35P1='02','1', TSN3.FS3R35P1='05', '3','2')
+		lcFS1R042P1=IIF(TSN3.FS3R36P1$'01,02','1','2')
+		lcFS1R23P1=ICASE('82'$TSN3.FS3R07P1,'082','93'$TSN3.FS3R07P1,'030','000')
+		lcFS1R26P1=IIF( '93'$TSN3.FS3R07P1,'01','')
+	CASE  this.typeform='TSN4'
+		ldFS1R13P1=TSN4.FS4R031P4
+		lcFS1R17P1=TSN4.FS4R06P1
+		lcFS1R15P1=TSN4.FS4R05P1
+		lcFS1R651P1=TSN4.FS4R37P1
+		lcFS1R70P1=TSN4.FS4R70P1
+		lcFS1R21P1=TSN4.FS4R07P1
+		lcFS1R231P1=TSN4.FS4R07P1
+		lcFS1R041P1=ICASE(TSN4.FS4R35P1='02','1', TSN4.FS4R35P1='05', '3','2')
+		lcFS1R042P1=IIF(TSN4.FS4R36P1$'01,02','1','2')
+		lcFS1R23P1=ICASE( '82'$TSN4.FS4R07P1,'082','93'$TSN4.FS4R07P1,'030','000')
+		lcFS1R26P1=IIF( '93'$TSN4.FS4R07P1,'01','')
+	OTHERWISE 
+		ldFS1R13P1=TSN1.FS1R13P1
+		lcFS1R17P1=TSN1.FS1R17P1
+		lcFS1R15P1=TSN1.FS1R15P1
+		lcFS1R651P1=TSN1.FS1R651P1
+		lcFS1R70P1=TSN1.FS1R70P1
+		lcFS1R21P1=TSN1.FS1R21P1
+		lcFS1R231P1=TSN1.FS1R231P1
+		lcFS1R041P1=TSN1.FS1R041P1
+		lcFS1R042P1=TSN1.FS1R042P1
+		lcFS1R23P1=TSN1.FS1R23P1
+		lcFS1R26P1=TSN1.FS1R26P1
+ENDCASE  
+
+* aTxtSoob[1,5]
+*** 1- штраф
+*** 2- исправ работы
+*** 3- общественные работы
+*** 4- ограничение свободы
+*** 5- арест
+*** 6- лишение свободы
+*** 7- смертная казнь
+
+**** Рассчитаем возраст на момент совершения преступления 
+lnFS1R14P1=DDTOMY(m.ldFS1R13P1,m.tdFS1R51P2,2)
+************* Наказание 
+aNakaz[6,12]=0
+
+aNakaz[16,2]='' && новое сообщение о 55 статье 
+***** Новые изменения в законодательстве все виды наказания подлежат уменьшению от 30.07.2018
+DO CASE 			
+	CASE m.tcFS1R56P1='1' && Приготовление 
+		lnMnoj56=1
+		lnDel56=2
+		aNakaz[6,12]=aNakaz[6,12]+2			&& добавочный код к сообщению об ошибке
+		
+		lcSoob55='Применена ч.2 ст.56 УК РК срок или размер наказания за приготовление к преступлению не может превышать половины максимального срока или размера основного вида наказания'
+		aNakaz[16,2]=lcSoob55+CHR(13)
+		
+	CASE m.tcFS1R56P1='2' && Покушение 
+		lnMnoj56=3
+		lnDel56=4
+		aNakaz[6,12]=aNakaz[6,12]+2			&& добавочный код к сообщению об ошибке
+		lcSoob55='Применена ч.3 ст.56 УК РК срок или размер наказания за покушение на преступление не может превышать трех четвертей максимального срока или размера основного вида наказания'
+		aNakaz[16,2]=lcSoob55+CHR(13)
+		
+ENDCASE 	
+
+
+IF ((m.tcFS1R566P1='3' OR m.tcFS1R567P1='3') AND m.lnFS1R14P1>=18) OR ;
+	m.tcFS1R567P1='2' OR m.tcFS1R567P1='4'
+	
+	STORE 1 TO lnMnoj, lnDel, lnMnojUdp, lnDelUdp
+	
+	tcFS1R573P1=IIF( '05'$tcFS1R573P1,  '05','' )	&& убираем применение 55 статьи и потом добавим ФЛК 
+	
+	IF m.tcFS1R567P1='2' OR m.tcFS1R567P1='4'
+	
+		lcSoob55='Положения ст.55 УК РК не распространяются на лиц, совершивших преступление, связанное с умышленным причинением смерти человеку, преступление против половой неприкосновенности несовершеннолетних'
+	ELSE 
+		lcSoob55='Положения ч.2 и 3 ст.55 УК РК не распространяются на лиц, совершивших преступления, связанные с насилием в отношении несовершеннолетних'
+	ENDIF 
+		aNakaz[16,2]=lcSoob55+CHR(13)
+	
+	
+	
+	
+	*!*	Положения частей второй и третьей настоящей статьи не распространяются на лиц, совершивших преступления, 
+	*!*	связанные с насилием в отношении несовершеннолетних, за исключением случая совершения такого преступления лицом, 
+	*!*	не достигшим совершеннолетия.
+	
+*!*		8. Положения настоящей статьи не распространяются на лиц, совершивших преступление, 
+*!*			связанное с умышленным причинением смерти человеку, 
+*!*			преступление против половой неприкосновенности несовершеннолетних, за исключением случая совершения такого преступления несовершеннолетним 
+*!*			в отношении несовершеннолетнего в возрасте от четырнадцати до восемнадцати лет.
+*!*			если несовершеннолетний в отношении малолетнего (до 14 лет) то тоже не применять 
+	
+ELSE 
+	IF m.lcFS1R041P1='1' OR m.lcFS1R042P1='1' 	&& ускоренного и проц соглашение 
+		lnDelUdp=2
+
+		lcSoob55='Применена ч.3 ст.55 УК РК по делам УДР, а также делам, по которым выполнены все условия процессуального соглашения, срок или размер основного вида наказания не может превышать половины максимального срока'
+	
+	*!*		 за совершение тяжкого преступления, связанного с посягательством на жизнь или здоровье человека, 
+	*!*		 или особо тяжкого преступления – трех четвертей
+	*!*		 а за совершение особо тяжкого преступления, связанного с посягательством на жизнь 
+	*!*		 или здоровье человека, – четырех пятых максимального срока или размера
+	
+		 IF m.tcFS1R567P1='1' OR m.tcFS1R567P1='2'	&& связанное с посягательством на жизнь и здоровье человека / с умышленным причинением смерти человеку
+			DO CASE 
+				CASE SLVST.Hard='3'
+					lnMnojUdp=3
+					lnDelUdp=4
+					
+					lcSoob55='Применена ч.3 ст.55 УК РК по делам УДР, а также делам, по которым выполнены все условия процессуального соглашения, за совершение тяжкого преступления, связанного с посягательством на жизнь или здоровье человека – трех четвертей максимального срока'
+
+				CASE SLVST.Hard='4'
+					lnMnojUdp=4
+					lnDelUdp=5
+
+					lcSoob55='Применена ч.3 ст.55 УК РК по делам УДР, а также делам, по которым выполнены все условия процессуального соглашения, за совершение особо тяжкого преступления, связанного с посягательством на жизнь или здоровье человека, – четырех пятых максимального срока'
+			ENDCASE		
+		 ELSE 
+			IF SLVST.Hard='4'
+				lnMnojUdp=3
+				lnDelUdp=4
+				
+				lcSoob55='Применена ч.3 ст.55 УК РК по делам УДР, а также делам, по которым выполнены все условия процессуального соглашения, за совершение особо тяжкого преступления – трех четвертей максимального срока'
+			ENDIF 
+		 ENDIF 
+
+		aNakaz[6,12]=aNakaz[6,12]+1				&& добавочный код к сообщению об ошибке
+		
+		
+		aNakaz[16,2]=aNakaz[16,2]+lcSoob55+CHR(13)
+	ELSE 
+		IF !EMPTY(STRTRAN(m.tcFS1R571P1,',','')) AND EMPTY(STRTRAN(m.tcFS1R572P1,',',''))
+			lcSoob55=''
+			DO CASE 
+				CASE SLVST.Hard='0'	OR SLVST.Hard='1'	OR SLVST.Hard='2' 
+					lnMnoj=1
+					lnDel=2
+					lcSoob55='Применена ч.2 ст.55 УК РК наличие смягчающего обстоятельства и отсутствие отягчающих обстоятельств по уголовному проступку преступлению небольшой или средней тяжести срок не может превышать половины'
+				
+				CASE SLVST.Hard='3'	
+					IF m.tcFS1R567P1='1' OR m.tcFS1R567P1='2'
+						lnMnoj=3
+						lnDel=4
+						lcSoob55='Применена ч.2 ст.55 УК РК наличие смягчающего обстоятельства и отсутствие отягчающих обстоятельств по тяжким преступлениям, связанным с посягательством на жизнь или здоровье человека срок не может превышать трех четвертей'
+					ELSE 
+						lnMnoj=2
+						lnDel=3
+						lcSoob55='Применена ч.2 ст.55 УК РК наличие смягчающего обстоятельства и отсутствие отягчающих обстоятельств по тяжким преступлениям срок не может превышать двух третей'
+					ENDIF
+				CASE SLVST.Hard='4' 
+					IF m.tcFS1R567P1='1' OR m.tcFS1R567P1='2'
+						lnMnoj=4
+						lnDel=5
+						lcSoob55='Применена ч.2 ст.55 УК РК наличие смягчающего обстоятельства и отсутствие отягчающих обстоятельств по особо тяжким преступлениям, связанным с посягательством на жизнь или здоровье человека, не может превышать четырех пятых'
+					ELSE
+						lnMnoj=3
+						lnDel=4
+						lcSoob55='Применена ч.2 ст.55 УК РК наличие смягчающего обстоятельства и отсутствие отягчающих обстоятельств по особо тяжким преступлениям, не может превышать трех четвертей'
+					ENDIF 
+			ENDCASE 
+			aNakaz[16,2]=aNakaz[16,2]+lcSoob55+CHR(13)
+		ENDIF 
+	ENDIF 
+ENDIF 
+
+*------------------------------------------------------------------------
+IF ('05'$SLVST.FS1R64 AND ;
+	!(m.tcFS1R54P1='1890003' AND !'02'$m.tcFS1R54P2) AND ;
+	!(m.tcFS1R54P1='1900003' AND !'02'$m.tcFS1R54P2) AND ;
+	!(m.tcFS1R54P1='3070003' AND !'02'$m.tcFS1R54P2)) ;
+		OR ('05'$SLVST.FS1R64_nn AND m.tcFS1R573P1='02')	&& штраф
+	lnFS1R64_05n=IIF(m.tcFS1R573P1$'01,04',0, EVL(VAL(SLVST.FS1R64_05n),IIF(SLVST.Prest='2',20,200))) 	
+	lnFS1R64_05x=EVL(VAL(SLVST.FS1R64_05x),IIF(SLVST.Prest='2',200,10000))
+
+	
+	IF m.lcFS1R041P1='3'	&& приказное производство 
+		IF (m.tcFS1R566P1='3' OR m.tcFS1R567P1='2') AND m.lnFS1R14P1>=18
+			*!*	Положения частей второй и третьей настоящей статьи не распространяются на лиц, совершивших преступления, 
+			*!*	связанные с насилием в отношении несовершеннолетних, за исключением случая совершения такого преступления лицом, 
+			*!*	не достигшим совершеннолетия.
+			*** НАДО БУДЕТ НА ФОРМЕ РАССЧЕТА НАПИСАТЬ об этом 	
+
+		ELSE 	
+			lnFS1R64_05n=MIN(m.lnFS1R64_05n,IIF(SLVST.Prest='2',10,50))
+			lnFS1R64_05x=MIN(m.lnFS1R64_05x,IIF(SLVST.Prest='2',20,200))
+		ENDIF	
+	ENDIF 
+	
+	&& нижний предел штрафа 
+	IF m.lnFS1R14P1<18	&& для несовершеннолетних от 5 до 100 МРП
+		IF ('90'$m.lcFS1R231P1 OR '91'$m.lcFS1R231P1 OR '92'$m.lcFS1R231P1) AND ;
+			m.lcFS1R23P1#'082' AND !'85'$m.lcFS1R231P1 AND !'86'$m.lcFS1R231P1
+			lnFS1R64_05n=MIN(m.lnFS1R64_05n,5)
+			lnFS1R64_05x=MIN(m.lnFS1R64_05x,100)
+		ELSE 	
+			aNakaz[1,4]=SetLang(5267)
+			lnFS1R64_05x=0
+			aNakaz[1,11]=6176
+		ENDIF 	
+	ENDIF 
+	*** рассчет размера с учетом 55 и 24
+	lnFS1R64_05x=m.lnFS1R64_05x/m.lnDelUdp*m.lnMnojUdp/m.lnDel56*m.lnMnoj56/m.lnDel*m.lnMnoj
+	lnFS1R64_05x=INT(lnFS1R64_05x*100)/100	&& формируем цифру с обрезанием до 2-х знаков (округление в меньшую строну)
+	
+	IF lnFS1R64_05x>0
+		aNakaz[1,1]=.T.										&& Наказание в виде штрафа (возможно назначить)
+		aNakaz[1,2]=MIN(m.lnFS1R64_05x, m.lnFS1R64_05n) 	&& нижний предел штафа 
+		aNakaz[1,3]=m.lnFS1R64_05x							&& верхний предел штрафа 
+		aNakaz[1,4]=IIF(aNakaz[1,2]#aNakaz[1,3], ;
+						IIF(aNakaz[1,2]>0,'от '+TRIM(TRANSFORM(aNakaz[1,2]),1,IIF(aNakaz[1,2]%1=0 AND aNakaz[1,2]#0,'','0'))+' ','')+ ;
+										'до ','')+ ;
+						TRIM(TRANSFORM(aNakaz[1,3]),1,IIF(aNakaz[1,3]%1=0 AND aNakaz[1,3]#0,'','0'))+;
+						' '+SetLang(ICASE('xN'$SLVST.FS1r64_05x, 5320, 'xK'$SLVST.FS1r64_05x, 5436, 5321)) 
+	ENDIF
+ELSE 
+	aNakaz[1,11]=6379
+ENDIF 	
+*------------------------------------------------------------------------
+IF '06'$SLVST.FS1R64 OR ('06'$SLVST.FS1R64_nn AND m.tcFS1R573P1='02')	&& исправ работы
+	IF m.lcFS1R23P1='082' OR '85'$m.lcFS1R231P1 OR '86'$m.lcFS1R231P1 OR '87'$m.lcFS1R231P1 OR '88'$m.lcFS1R231P1
+		*** не имеет постоянно работы, нетрудоспособный, учащийся с отрывом от производства (надо добавить реквизит) 
+		aNakaz[2,4]=SetLang(5266)
+		aNakaz[2,11]=6177
+	ELSE 
+		lnFS1R64_06n=IIF(tcFS1R573P1$'01,04',0,EVL(VAL(SLVST.FS1R64_06n),IIF(SLVST.Prest='2',20,200)))	&& новый УК  OR m.tcFS1R56P1$'1,2'
+		lnFS1R64_06x=EVL(VAL(SLVST.FS1R64_06x),IIF(SLVST.Prest='2',200,10000))
+
+		IF m.lnFS1R14P1<18	&& для несовершеннолетних от 5 до 100 МРП
+			IF '90'$m.lcFS1R231P1 OR '91'$m.lcFS1R231P1 OR '92'$m.lcFS1R231P1
+				lnFS1R64_06n=MIN(m.lnFS1R64_06n,5) 
+				lnFS1R64_06x=MIN(m.lnFS1R64_06x,100)
+			ELSE 
+				aNakaz[2,4]=SetLang(5268)
+				lnFS1R64_06x=0
+			ENDIF 
+		ENDIF 
+		*** рассчет размера с учетом 55 и 24
+		lnFS1R64_06x=m.lnFS1R64_06x/m.lnDelUdp*m.lnMnojUdp/m.lnDel56*m.lnMnoj56/m.lnDel*m.lnMnoj
+		lnFS1R64_06x=INT(lnFS1R64_06x*100)/100	&& формируем цифру с обрезанием до 2-х знаков (округление в меньшую строну)
+
+		IF m.lnFS1R64_06x>0
+			aNakaz[2,1]=.T.													&& Наказание в виде исправ работы (возможно назначить)
+			aNakaz[2,2]=MIN(m.lnFS1R64_06x, m.lnFS1R64_06n)					&& IIF(m.lnFS1R64_06n>=m.lnFS1R64_06x, m.lnFS1R64_06x, m.lnFS1R64_06n)	&& нижний предел  
+			aNakaz[2,3]=m.lnFS1R64_06x	&& верхний предел
+			aNakaz[2,4]=IIF(m.lnFS1R64_06n>=m.lnFS1R64_06x,'', ;
+							IIF(m.lnFS1R64_06n>1,'от '+LTRIM(STR(m.lnFS1R64_06n))+' ','')+'до ')+ ;
+								LTRIM(STR(lnFS1R64_06x))+' '+SetLang(5321)
+
+			aNakaz[2,4]=IIF(aNakaz[2,2]#aNakaz[2,3], ;
+						IIF(aNakaz[2,2]>0,'от '+TRIM(TRANSFORM(aNakaz[2,2]),1,IIF(aNakaz[2,2]%1=0 AND aNakaz[2,2]#0,'','0'))+' ','')+ ;
+										'до ','')+ ;
+						TRIM(TRANSFORM(aNakaz[2,3]),1,IIF(aNakaz[2,3]%1=0 AND aNakaz[2,3]#0,'','0'))+;
+						' '++SetLang(5321)
+		ENDIF 	
+	ENDIF 
+ENDIF 
+
+*------------------------------------------------------------------------
+IF '09'$SLVST.FS1R64	&& общественные работы в часах
+	IF '83'$m.lcFS1R231P1 OR ;
+		(m.lcFS1R15P1='2' AND ('02'$m.lcFS1R21P1 OR m.lnFS1R14P1>57)) OR '04'$m.lcFS1R21P1 OR m.lnFS1R14P1>62 OR ;
+		'85'$m.lcFS1R231P1 OR '93'$m.lcFS1R231P1 OR ;
+		(m.lcFS1R23P1$'024,025,026,027,028,029,030' AND !EMPTY(m.lcFS1R26P1))
+		aNakaz[3,4]=SetLang(5269)
+		IF '83'$m.lcFS1R231P1 OR ;
+			(m.lcFS1R15P1='2' AND ('02'$m.lcFS1R21P1 OR m.lnFS1R14P1>57)) OR '04'$m.lcFS1R21P1 OR m.lnFS1R14P1>62
+			aNakaz[3,11]=6026
+		ELSE
+			aNakaz[3,11]=6030
+		ENDIF 
+	ELSE 	
+		lnFS1R64_09n=IIF(m.tcFS1R573P1$'01,04',0,EVL(VAL(SLVST.FS1R64_09n),IIF(SLVST.Prest='2',20,200)))	&& ниже низшего  OR m.tcFS1R56P1$'1,2'
+		lnFS1R64_09x=EVL(VAL(SLVST.FS1R64_09x),IIF(SLVST.Prest='2',200,1200))
+
+		IF m.lnFS1R14P1<18	&& для несовершеннолетних от 10 до 75 час
+			lnFS1R64_09n=MIN(10,m.lnFS1R64_09n) 
+			lnFS1R64_09x=MIN(75,m.lnFS1R64_09x)
+		ENDIF 
+
+		*** рассчет размера с учетом 55 и 24
+		lnFS1R64_09x=m.lnFS1R64_09x/m.lnDelUdp*m.lnMnojUdp/m.lnDel56*m.lnMnoj56/m.lnDel*m.lnMnoj
+		lnFS1R64_09x=INT(lnFS1R64_09x)	&& формируем целую часть числа 
+
+
+		aNakaz[3,1]=.T.					&& Наказание в виде исправ работы (возможно назначить)
+		aNakaz[3,2]=MIN(m.lnFS1R64_09x, m.lnFS1R64_09n)	&& нижний предел  
+		aNakaz[3,3]=m.lnFS1R64_09x		&& верхний предел
+		aNakaz[3,4]=IIF(aNakaz[3,2]#aNakaz[3,3], ;
+					IIF(aNakaz[3,2]>0,'от '+TRIM(TRANSFORM(aNakaz[3,2]),1,IIF(aNakaz[3,2]%1=0 AND aNakaz[3,2]#0,'','0'))+' ','')+ ;
+									'до ','')+ ;
+					TRIM(TRANSFORM(aNakaz[3,3]),1,IIF(aNakaz[3,3]%1=0 AND aNakaz[3,3]#0,'','0'))+;
+					' '++SetLang(5322)
+	ENDIF 
+ENDIF 
+*------------------------------------------------------------------------
+IF '12'$SLVST.FS1R64	&& арест
+	IF m.lnFS1R14P1<18 OR '85'$m.lcFS1R231P1 OR ;
+		'83'$m.lcFS1R231P1 OR ;
+		(m.lcFS1R15P1='2' AND ('02'$m.lcFS1R21P1 OR m.lnFS1R14P1>57)) OR '04'$m.lcFS1R21P1 OR m.lnFS1R14P1>62 
+		aNakaz[5,4]=SetLang(5270)
+		aNakaz[5,11]=IIF(m.lnFS1R14P1<18 OR '85'$m.lcFS1R231P1, 6031, 6027)
+	ELSE 	
+		lnFS1R64_12n=IIF(m.tcFS1R573P1$'01,04',0,EVL(VAL(SLVST.FS1R64_12n),10))	&& ниже низшего
+		lnFS1R64_12x=VAL(SLVST.FS1R64_12x)
+
+		*** рассчет размера с учетом 55 и 24
+		lnFS1R64_12x=m.lnFS1R64_12x/m.lnDelUdp*m.lnMnojUdp/m.lnDel56*m.lnMnoj56/m.lnDel*m.lnMnoj
+		lnFS1R64_12x=INT(lnFS1R64_12x)	&& формируем целую часть числа 
+
+		aNakaz[5,1]=.T.					&& Наказание в виде  арест (возможно назначить)
+		aNakaz[5,2]=MIN(m.lnFS1R64_12x, m.lnFS1R64_12n) 	&& нижний предел  
+		aNakaz[5,3]=m.lnFS1R64_12x							&& верхний предел
+		aNakaz[5,4]=IIF(aNakaz[5,2]#aNakaz[5,3], ;
+					IIF(aNakaz[5,2]>0,'от '+TRIM(TRANSFORM(aNakaz[5,2]),1,IIF(aNakaz[5,2]%1=0 AND aNakaz[5,2]#0,'','0'))+' ','')+ ;
+									'до ','')+ ;
+					TRIM(TRANSFORM(aNakaz[5,3]),1,IIF(aNakaz[5,3]%1=0 AND aNakaz[5,3]#0,'','0'))+;
+					' сут.'+SetLang(5323)
+	ENDIF 
+ENDIF 
+*------------------------------------------------------------------------
+*!*	IF '02'$SLVST.FS1R64	&& смертная казнь 
+*!*		IF m.lnFS1R14P1<18 OR m.lcFS1R15P1='2' OR  m.lnFS1R14P1>62
+*!*			aNakaz[7,4]=SetLang(5276)
+*!*			aNakaz[7,11]=6029
+*!*		ELSE 	
+*!*			DO CASE 
+*!*				CASE !EMPTY(STRTRAN(m.tcFS1R571P1,',','')) AND EMPTY(STRTRAN(m.tcFS1R572P1,',',''))
+*!*					aNakaz[7,4]=SetLang(5278)
+*!*					aNakaz[7,11]=6172
+*!*				CASE m.tcFS1R56P1='2' OR m.tcFS1R56P1='1'
+*!*					aNakaz[7,4]=SetLang(5280)
+*!*					aNakaz[7,11]=6173
+*!*				OTHERWISE 
+*!*					aNakaz[7,4]=SetLang(5277)
+*!*					aNakaz[7,1]=.T.					&& Наказание в виде  смертная казнь (возможно назначить)
+*!*			ENDCASE 	
+*!*		ENDIF 
+*!*	ENDIF 
+
+*************************************************************************************************
+*************************************************************************************************
+*************************************************************************************************
+*------------------------------------------------------------------------
+IF ('11'$SLVST.FS1R64 AND ;
+		!(m.tcFS1R54P1='1890003' AND '02'$m.tcFS1R54P2) AND ;
+		!(m.tcFS1R54P1='1900003' AND '02'$m.tcFS1R54P2) ) ;
+		  OR ('11'$SLVST.FS1R64_nn AND m.tcFS1R573P1='02')			&& ограничение свободы
+
+	lnFS1R64_11n=IIF(m.tcFS1R573P1$'01,04',0, EVL(VAL(SLVST.FS1R64_11n)*12,6))	&& ниже низшего переведено в месяца
+	lnFS1R64_11x=EVL(VAL(SLVST.FS1R64_11x),7)*12								&& переведено в месяца
+
+	IF m.lnFS1R14P1<18	&& для несовершеннолетних до 2 лет 
+		lnFS1R64_11n=0 
+		lnFS1R64_11x=MIN(m.lnFS1R64_11x,2)*12 
+	ENDIF 
+
+	&& переводим в дни и назад
+	ldDateStart=TTOD(EVL(this.srv_now, DATETIME()))
+	lnFS1R64_11x=FLOOR(GOMONTH(m.ldDateStart,m.lnFS1R64_11x/m.lnDelUdp*m.lnMnojUdp/m.lnDel56*m.lnMnoj56/m.lnDel*m.lnMnoj) - m.ldDateStart) 	&& ближайшее меньшее число дней
+
+	*** разбор по месяцам годам дням
+	lnMes=ddtomy(m.ldDateStart,lnFS1R64_11x,4)	&& кол-во месяцев
+	lnDay=ddtomy(m.ldDateStart,lnFS1R64_11x,5)	&& кол-во дней
+	lnYear=0
+	lnFS1R64_11x=m.lnMes+m.lnDay/10	&& возвращаем число месяцев дней для отображения
+	IF m.lnMes>11
+		lnYear=FLOOR(m.lnMes/12)
+		lnMes=m.lnMes-m.lnYear*12
+	ENDIF 
+	
+	aNakaz[4,8]=m.lnYear
+	aNakaz[4,9]=m.lnMes
+	aNakaz[4,10]=m.lnDay
+
+	lcPadeg=IIF(m.lnFS1R64_11n>=lnFS1R64_11x,'I','D')	&& определяем падежное окончание 
+	lcMaxSrok=IIF(m.lnYear>0,TRANSFORM(m.lnYear)+' '+DMYTORUS(m.lnYear,3,m.lcPadeg)+' ','')+ ;
+				IIF(m.lnMes>0,TRANSFORM(m.lnMes)+' '+DMYTORUS(m.lnMes,2,m.lcPadeg)+' ','')+ ;
+				IIF(m.lnDay>0,TRANSFORM(m.lnDay)+' '+DMYTORUS(m.lnDay,1,m.lcPadeg),'')
+
+	lnMes=m.lnFS1R64_11n
+	lnYear=0
+	IF m.lnMes>11
+		lnYear=FLOOR(m.lnMes/12)
+		lnMes=m.lnMes-m.lnYear*12
+	ENDIF 
+	aNakaz[4,5]=m.lnYear
+	aNakaz[4,6]=m.lnMes
+	aNakaz[4,7]=m.lnDay
+
+	lcMinSrok=IIF(m.lnYear>0,TRANSFORM(m.lnYear)+' '+DMYTORUS(m.lnYear,3,'D')+' ','')+ ;
+				IIF(m.lnMes>0,TRANSFORM(m.lnMes)+' '+DMYTORUS(m.lnMes,2,'D')+' ','')
+				
+	IF m.lnFS1R64_11n>=m.lnFS1R64_11x	&& минимальный срок выше максимального 
+		aNakaz[4,5]=aNakaz[4,8]
+		aNakaz[4,6]=aNakaz[4,9]
+		aNakaz[4,7]=aNakaz[4,10]
+		lnFS1R64_11n=m.lnFS1R64_11x
+	ENDIF 			
+		aNakaz[4,1]=.T.					&& Наказание в виде  ограничение свободы (возможно назначить)
+		aNakaz[4,2]=m.lnFS1R64_11n		&& нижний предел  
+		aNakaz[4,3]=m.lnFS1R64_11x		&& верхний предел
+		lcPadeg=IIF(aNakaz[4,2]=aNakaz[4,3],'I','D')	&& определяем падежное окончание 
+		aNakaz[4,4]=IIF(aNakaz[4,2]#aNakaz[4,3], ;
+						IIF(aNakaz[4,2]>0,'от '+m.lcMinSrok+' ','')+'до ','')+m.lcMaxSrok
+ELSE 
+	aNakaz[4,11]=6380
+ENDIF 
+*------------------------------------------------------------------------
+IF '01'$SLVST.FS1R64 OR '03'$SLVST.FS1R64	&& лишение свободы
+	****** Пожизненное лишение свободы
+	lcFS1R64_02x=IIF( '03'$SLVST.FS1R64 OR (m.tcFS1R54P1='4370003' AND !EMPTY(STRTRAN(m.tcFS1R572P1,',',''))),SetLang(5279),'') && либо пожизненное лишение свободы 
+*!*		IF m.lcFS1R041P1='1' OR m.lcFS1R042P1='1'  				&& ускоренного и проц соглашение && 16.11.2017
+*!*			lcFS1R64_02x=''	
+*!*			aNakaz[6,13]=6174
+*!*		ELSE 
+*!*			IF (!EMPTY(STRTRAN(m.tcFS1R571P1,',','')) AND EMPTY(STRTRAN(m.tcFS1R572P1,',','')))
+*!*				lcFS1R64_02x=''	
+*!*				aNakaz[6,13]=6175
+*!*			ENDIF 
+*!*		ENDIF 
+
+	IF m.lnFS1R14P1<18 OR m.lcFS1R15P1='2' OR  m.lnFS1R14P1>62	&& не назначается 
+		lcFS1R64_02x=''
+		aNakaz[6,13]=6028
+	ENDIF 
+	IF m.tcFS1R56P1$'1,2'			&& 16.11.2017
+		lcFS1R64_02x=''	
+		aNakaz[6,13]=6173
+	ENDIF 	
+	
+	IF ('05'$SLVST.FS1R64 OR '06'$SLVST.FS1R64 OR '11'$SLVST.FS1R64) AND ;
+		'06'$m.tcFS1R571P1 AND ;
+		(SLVST.Hard='1' OR SLVST.hard='2' OR ;
+		(BETWEEN(LEFT(m.tcFS1R54P1,5),'21400','24700') AND LEFT(m.tcFS1R54P1,5)#'21800' AND LEFT(m.tcFS1R54P1,5)#'21801')) AND ;
+		m.tcFS1R567P1<>'2' AND m.tcFS1R567P1<>'4' AND ;
+		(m.tcFS1R567P1<>'3' OR m.lnFS1R14P1<18)
+
+*!*			8. Положения настоящей статьи не распространяются на лиц, совершивших преступление, 
+*!*			связанное с умышленным причинением смерти человеку, преступление против половой неприкосновенности несовершеннолетних, 
+*!*			за исключением случая совершения такого преступления несовершеннолетним в отношении несовершеннолетнего 
+*!*			в возрасте от четырнадцати до восемнадцати лет.
+
+		aNakaz[6,4]=SetLang(5272)
+		aNakaz[6,11]=6170
+		aNakaz[6,13]=6170
+	ELSE 
+		IF m.lnFS1R14P1<18 AND SLVST.Hard#'3' AND SLVST.hard#'4' AND SLVST.FL1U#'ALL' AND ;
+			(EMPTY(SLVST.FL1U) OR !ALLTRIM(SLVST.FL1U)$m.tcFS1R54P2)
+			aNakaz[6,4]=SetLang(5271)
+			aNakaz[6,11]=6171
+			aNakaz[6,13]=6171
+		ELSE 
+			
+			lnFS1R64_01n=VAL(SLVST.FS1R64_01n)*12
+			lnFS1R64_01x=VAL(SLVST.FS1R64_01x)*12
+
+
+			IF (m.tcFS1R54P1='4370003' AND !EMPTY(STRTRAN(m.tcFS1R572P1,',','')))	&& для одной определенной статьи при отягчающих обстоятельствах
+				lnFS1R64_01n=10*12
+				lnFS1R64_01x=20*12 
+			ENDIF 
+
+			lnFS1R64_01n=IIF(m.tcFS1R573P1$'01,04',6,EVL(m.lnFS1R64_01n,6)) 
+
+			IF m.lnFS1R14P1<18	&& для несовершеннолетних до 10 лет (убийство или терроризм до 12)
+			 	IF (m.tcFS1R54P1='09900' AND !EMPTY(STRTRAN(m.tcFS1R572P1,',',''))) OR m.tcFS1R54P1='25500'	 OR m.tcFS1R54P1='0990002'	
+					lnFS1R64_01x=12*12
+				ELSE 
+					lnFS1R64_01x=10*12
+				ENDIF 	 
+				lnFS1R64_01n=MIN(m.lnFS1R64_01n, m.lnFS1R64_01x)
+			ENDIF 
+
+			
+			*** Если статья содержит наказание только пожизненное лишение свободы 
+			**** НЛ, женщинам, лицам старше 63 лет и инвалидам 1-2 группы пожизненное меняем на лишение свободы и убираем пожизненное 
+			IF '03'$SLVST.FS1R64 AND !'01'$SLVST.FS1R64
+				DO CASE 
+					CASE m.lnFS1R14P1<18	
+						lnFS1R64_01n=15*12
+						lnFS1R64_01x=20*12 
+
+						lcFS1R64_02x=''
+						aNakaz[6,13]=6828
+						lcSoob55='Применена ч.4-1 ст.46 УК РК. '+CHR(13)+ ;
+							 'Если санкция статьи предусматривает только пожизненное лишение свободы, то н/летним, назначается л/свободы сроком от 15 до 20 лет'
+						aNakaz[16,2]=aNakaz[16,2]+lcSoob55+CHR(13)
+						
+						STORE 1 TO m.lnDelUdp, m.lnMnojUdp,  m.lnDel, m.lnMnoj
+
+					CASE m.lcFS1R15P1='2' OR  m.lnFS1R14P1>62 OR '85'$m.lcFS1R231P1
+						lnFS1R64_01n=20*12
+						lnFS1R64_01x=25*12 
+
+						lcFS1R64_02x=''
+						aNakaz[6,13]=6828	
+						lcSoob55='Применена ч.4-1 ст.46 УК РК. '+CHR(13)+ ;
+								 'Если санкция статьи предусматривает только пожизненное лишение свободы, то женщинам,лицам с инвалидностью 1-2 группы,мужчинам в возрасте 63 и свыше лет назначается л/свободы сроком от 20 до 25 лет.'
+						aNakaz[16,2]=aNakaz[16,2]+lcSoob55+CHR(13)
+						
+						STORE 1 TO m.lnDelUdp, m.lnMnojUdp,  m.lnDel, m.lnMnoj
+						
+					CASE m.tcFS1R56P1='1' OR m.tcFS1R56P1='2'
+						lnFS1R64_01n=25*12
+						lnFS1R64_01x=25*12 
+					
+						lcFS1R64_02x=''
+						aNakaz[6,13]=6829						
+
+						lcSoob55='Применена ч.4 ст.56 УК РК. '+CHR(13)+ ;
+								 'Если санкция статьи предусматривает только пожизненное лишение свободы, за приготовление к преступлению и покушение на преступление назначается л/свободы сроком на 25 лет.'
+						aNakaz[16,2]=aNakaz[16,2]+lcSoob55+CHR(13)
+						
+						STORE 1 TO m.lnDelUdp, m.lnMnojUdp, m.lnDel56, m.lnMnoj56, m.lnDel, m.lnMnoj
+					ENDCASE 		
+			ENDIF 
+			
+			
+			IF !EMPTY(m.lnFS1R64_01x)	&& лишение свободы
+				&& переводим в дни и назад
+				ldDateStart=TTOD(EVL(this.srv_now, DATETIME()))
+				lnFS1R64_01x=FLOOR(GOMONTH(m.ldDateStart,m.lnFS1R64_01x/m.lnDelUdp*m.lnMnojUdp/m.lnDel56*m.lnMnoj56/m.lnDel*m.lnMnoj) - m.ldDateStart) 	&& ближайшее меньшее число дней
+				
+				*** разбор по месяцам годам дням
+				lnMes=ddtomy(m.ldDateStart,lnFS1R64_01x,4)	&& кол-во месяцев
+				lnDay=ddtomy(m.ldDateStart,lnFS1R64_01x,5)	&& кол-во дней
+				lnYear=0
+				lnFS1R64_01x=m.lnMes+m.lnDay/10	&& возвращаем число месяцев дней для отображения
+				IF m.lnMes>11
+					lnYear=FLOOR(m.lnMes/12)
+					lnMes=m.lnMes-m.lnYear*12
+				ENDIF 
+				aNakaz[6,8]=m.lnYear
+				aNakaz[6,9]=m.lnMes
+				aNakaz[6,10]=m.lnDay
+				
+				lcPadeg=IIF(m.lnFS1R64_01n>=lnFS1R64_01x,'I','D')	&& определяем падежное окончание 
+				lcMaxSrok=IIF(m.lnYear>0,TRANSFORM(m.lnYear)+' '+DMYTORUS(m.lnYear,3,m.lcPadeg)+' ','')+ ;
+							IIF(m.lnMes>0,TRANSFORM(m.lnMes)+' '+DMYTORUS(m.lnMes,2,m.lcPadeg)+' ','')+ ;
+							IIF(m.lnDay>0,TRANSFORM(m.lnDay)+' '+DMYTORUS(m.lnDay,1,m.lcPadeg),'')
+				
+				lnMes=m.lnFS1R64_01n
+				lnYear=0
+				IF m.lnMes>11
+					lnYear=FLOOR(m.lnMes/12)
+					lnMes=m.lnMes-m.lnYear*12
+				ENDIF 
+				aNakaz[6,5]=m.lnYear
+				aNakaz[6,6]=m.lnMes
+				aNakaz[6,7]=m.lnDay
+				
+				lcMinSrok=IIF(m.lnYear>0,LTRIM(STR(m.lnYear))+' '+DMYTORUS(m.lnYear,3,'D')+' ','')+ ;
+							IIF(m.lnMes>0,LTRIM(STR(m.lnMes))+' '+DMYTORUS(m.lnMes,2,'D')+' ','')
+							
+				IF m.lnFS1R64_01n>=m.lnFS1R64_01x	&& минимальный срок выше максимального 
+					aNakaz[6,5]=aNakaz[6,8]
+					aNakaz[6,6]=aNakaz[6,9]
+					aNakaz[6,7]=aNakaz[6,10]
+					lnFS1R64_01n=m.lnFS1R64_01x
+				ENDIF 			
+
+				*** если минимальный срок равен максимальному или больше то отображаем только максимальный
+				aNakaz[6,1]=.T.					&& Наказание в виде  лишение свободы (возможно назначить)
+				aNakaz[6,2]=m.lnFS1R64_01n
+				aNakaz[6,3]=m.lnFS1R64_01x
+				aNakaz[6,4]=IIF(m.lnFS1R64_01n>=lnFS1R64_01x,'','от '+m.lcMinSrok+' до ')+m.lcMaxSrok+' '+m.lcFS1R64_02x
+			ELSE 
+				aNakaz[16,1]=.T.					&& Наказание в виде  лишение свободы (возможно назначить) но тут только пожизненнное 
+				aNakaz[6,11]= 6830
+				aNakaz[6,4]= SetLang(5775)
+				aNakaz[16,2]='' && убираем 55 УК РК 
+			ENDIF 
+		ENDIF 
+	ENDIF 	
+ENDIF 
+
+******ДОПОЛНИТЕЛЬНЫЕ МЕРЫ НАКАЗАНИЯ *****************
+*** 8- Конфискация имущества
+*** 9- выдворение иностранца за пределы РК
+*** 10- пожизненное лишение права
+*** 11- лишение права на определенный срок
+*** 12- лишение гражданства
+
+*!*	lcSt48=''
+*----------конфискация----------------------
+llFS1R65o_01= ;
+	((m.tcFS1R54P1='3620004' AND '03'$m.tcFS1R54P2) OR ;
+	(m.tcFS1R54P1='4510002' AND '02'$m.tcFS1R54P2)) && конфискация по пунктам
+
+	IF '01'$SLVST.FS1R65_o OR '01'$SLVST.FS1R65_n OR m.llFS1R65o_01
+		IF m.lnFS1R14P1<18
+			aNakaz[8,4]=SetLang(5283)
+		ELSE 
+			aNakaz[8,1]=.T.
+			aNakaz[8,2]=('01'$SLVST.FS1R65_o OR m.llFS1R65o_01) AND tcFS1R573P1<>'03'  && обязательно 
+			aNakaz[8,4]= SetLang(IIF( '01'$SLVST.FS1R65_o OR m.llFS1R65o_01, 5281,5282))
+		ENDIF 
+	ENDIF 
+*----------выдворение----------------------
+IF '04'$SLVST.FS1R65_o OR '04'$SLVST.FS1R65_n
+	IF m.lnFS1R14P1<18
+		aNakaz[9,4]=SetLang(5286)
+	ELSE 
+		aNakaz[9,1]=.T.
+		aNakaz[9,2]=('04'$SLVST.FS1R65_o) AND tcFS1R573P1<>'03' && Обязательно или нет 
+		IF !m.lcFS1R17P1$'2,3,4'
+			aNakaz[9,4]=SetLang(IIF( '04'$SLVST.FS1R65_o,5287,5285))
+		ELSE 
+			aNakaz[9,4]=SetLang(IIF( '04'$SLVST.FS1R65_o,5284,5285))
+		ENDIF 	
+	ENDIF 
+ENDIF 
+
+*** обязательное пожизненное по пунктам
+llFS1R65_o= ;
+((m.tcFS1R54P1='1200003' AND '05'$m.tcFS1R54P2) OR ;
+(m.tcFS1R54P1='1210003' AND '05'$m.tcFS1R54P2) OR ;
+(m.tcFS1R54P1='1340004' AND '02'$m.tcFS1R54P2) OR ;
+(m.tcFS1R54P1='1890003' AND '02'$m.tcFS1R54P2) OR ;
+(m.tcFS1R54P1='1900003' AND '02'$m.tcFS1R54P2) OR ;
+(m.tcFS1R54P1='2150002' AND '03'$m.tcFS1R54P2) OR ;
+(m.tcFS1R54P1='2160002' AND '04'$m.tcFS1R54P2) OR ;
+(m.tcFS1R54P1='2170003' AND '03'$m.tcFS1R54P2) OR ;
+(m.tcFS1R54P1='2180003' AND '01'$m.tcFS1R54P2) OR ;
+(m.tcFS1R54P1='2180104' AND '01'$m.tcFS1R54P2) OR ;
+(m.tcFS1R54P1='2340003' AND '01'$m.tcFS1R54P2) OR ;
+(m.tcFS1R54P1='2490003' AND '02'$m.tcFS1R54P2) OR ;
+(m.tcFS1R54P1='3070003' AND '03'$m.tcFS1R54P2) OR ;
+(m.tcFS1R54P1='3120003' AND ('01'$m.tcFS1R54P2 OR '02'$m.tcFS1R54P2)) OR ;
+(m.tcFS1R54P1='3620004' AND '03'$m.tcFS1R54P2) OR ;
+(m.tcFS1R54P1='4510002' AND '02'$m.tcFS1R54P2))
+*----------пожизненное лишение права----------------------
+IF '22'$SLVST.FS1R65_o OR '22'$SLVST.FS1R65_n OR llFS1R65_o
+	IF m.lnFS1R14P1<18
+		aNakaz[10,4]=SetLang(5290)
+	ELSE 
+		aNakaz[10,1]=.T.
+		aNakaz[10,2]=('22'$SLVST.FS1R65_o AND tcFS1R573P1<>'03')
+		aNakaz[10,4]=SetLang(IIF( '22'$SLVST.FS1R65_o OR m.llFS1R65_o,5288,5289))
+	ENDIF 
+ENDIF 
+*----------лишение права---------------------
+IF ('02'$SLVST.FS1R65_o OR '02'$SLVST.FS1R65_n OR m.tcFS1R573P1='05') AND !m.llFS1R65_o
+	lnFS1R65_02n=IIF(m.tcFS1R573P1='05',1,EVL(VAL(SLVST.FS1R65_02n),1))
+	lnFS1R65_02x=EVL(VAL(SLVST.FS1R65_02x),10)
+	IF m.lnFS1R14P1<18
+		lnFS1R65_02x=MAX(MIN(m.lnFS1R65_02x,2),2)
+		lnFS1R65_02n=MIN(m.lnFS1R65_02n,2)
+	ENDIF 	
+
+	aNakaz[11,1]=.T.
+	aNakaz[11,2]=('02'$SLVST.FS1R65_o  AND tcFS1R573P1<>'03')
+	aNakaz[11,5]=m.lnFS1R65_02n
+	IF EMPTY(m.lnFS1R65_02x) AND m.lnFS1R14P1>17
+		aNakaz[11,3]=.T.
+		aNakaz[11,6]=999
+		aNakaz[11,4]=SetLang(IIF( '02'$SLVST.FS1R65_o,5291,5292))+ ;
+						' от '+LTRIM(STR(m.lnFS1R65_02n))+DMYTORUS(m.lnFS1R65_02n,3,'D')+SetLang(5324)
+	ELSE 
+		aNakaz[11,6]=m.lnFS1R65_02x
+		aNakaz[11,5]=IIF(m.lnFS1R65_02n>=m.lnFS1R65_02x,m.lnFS1R65_02x,m.lnFS1R65_02n)
+		lcPadeg=IIF(m.lnFS1R65_02n>=m.lnFS1R65_02x,'I','D')	&& определяем падежное окончание 
+		aNakaz[11,4]=SetLang(IIF( '02'$SLVST.FS1R65_o,5291,5292))+ ;
+				IIF(m.lnFS1R65_02n>=m.lnFS1R65_02x,' на ',;
+				' от '+LTRIM(STR(m.lnFS1R65_02n))+' '+DMYTORUS(m.lnFS1R65_02n,3,'D')+' до ')+LTRIM(STR(m.lnFS1R65_02x))+' '+DMYTORUS(m.lnFS1R65_02x,3,m.lcPadeg)
+	ENDIF 
+ENDIF 
+*----------Лишение гражданства ----------------------
+IF '05'$SLVST.FS1R65_o OR '05'$SLVST.FS1R65_n
+	IF m.lnFS1R14P1<18
+		aNakaz[12,4]=SetLang(5421)
+	ELSE 
+		aNakaz[12,1]=.T.
+		aNakaz[12,2]=('05'$SLVST.FS1R65_o) AND tcFS1R573P1<>'03' && Обязательно или нет 
+		IF m.lcFS1R17P1<>'1'
+			aNakaz[12,4]=SetLang(IIF('05'$SLVST.FS1R65_o,5422,5424))
+		ELSE 
+			aNakaz[12,4]=SetLang(IIF('04'$SLVST.FS1R65_o,5423,5424))
+		ENDIF 	
+	ENDIF 
+ENDIF 
+
+aNakaz[15,1]=(SLVST.Prest='2')	&& является проступком
+
+IF !LEFT(m.tcFS1R54P1,5)$'17000,17100,17300,17700,17800,18400,25500,25600,25700,25800,25900,26000,26100,26900,27000'
+	IF m.tcFS1R56P1='1' AND !ALLTRIM(SLVST.Hard)$'3,4'
+		aNakaz[15,2]=.T.		&& не является преступлением
+		aNakaz[15,4]=SetLang(5295)
+	ENDIF 
+	IF m.tcFS1R56P1='2' AND !ALLTRIM(SLVST.Hard)$'2,3,4'
+		aNakaz[15,2]=.T.
+		aNakaz[15,4]=SetLang(5296)
+	ENDIF 
+ENDIF 
+
+DO CASE 
+	CASE m.lnFS1R14P1<14
+		aNakaz[15,2]=.T.
+		aNakaz[15,4]=SetLang(5293)
+	CASE m.lnFS1R14P1<16 AND ;
+		!LEFT(m.tcFS1R54P1,5)$'09900,10600,12000,12100,12500,17300,17400,17700,17800,18400,19200,25500,25600,25800,26100,26900,27300,29100,29400,29800,35000' AND ;
+			!m.tcFS1R54P1$'1070002,1880002,1880003,1880004,1880102,1880103,1880104,1910002,1910003,1910004,1940002,1940003,1940004,2000002,2000003,2000004,2020002,2020003,2030002,2030003,2570001,2570002,2930002,2930003,3140002'
+
+		*** Внимание ст.203 УК РК должна работать с учетом историчности (ее добавили 06.07.2024 вступила в действие 04.09.2024)
+		aNakaz[15,2]=.T.
+		aNakaz[15,4]=SetLang(5294)
+ENDCASE  
